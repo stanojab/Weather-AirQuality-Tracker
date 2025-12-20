@@ -83,6 +83,10 @@ public class SloveniaMap extends ApplicationAdapter {
     private boolean awaitingLocationClick = false;
     private Vector2 pendingLocation = null;
 
+    //AirQualityMocde
+    private boolean airQualityMode = false;
+    private TextButton modeToggleButton;
+
     private static final String GEOAPIFY_API_KEY = "930e7c22c63b486eac329474adc56afd";
     private static final String OPENWEATHER_API_KEY = "c55932282557548fa0e13cf7975bfc0d";
     private static final String CITIES_FILE = "cities.json";
@@ -160,8 +164,11 @@ public class SloveniaMap extends ApplicationAdapter {
             System.err.println("Failed to load map: " + e.getMessage());
             e.printStackTrace();
         }
+        createModeToggleButton();
+
 
         loadWeatherDataForAllCities();
+        loadAirQualityDataForAllCities();
     }
 
     private void initializeDefaultCities() {
@@ -274,6 +281,65 @@ public class SloveniaMap extends ApplicationAdapter {
         }
     }
 
+    private void loadAirQualityDataForAllCities() {
+        if (USE_STATIC_WEATHER_DATA) {
+            System.out.println("Using static air quality data from JSON file");
+            return;
+        }
+
+        new Thread(() -> {
+            for (City city : cities) {
+                if (city.isStatic) {
+                    System.out.println("Skipping API call for static city: " + city.name);
+                    continue;
+                }
+
+                try {
+                    loadAirQualityData(city);
+                    Thread.sleep(100);
+                } catch (Exception e) {
+                    System.err.println("Failed to load air quality for " + city.name + ": " + e.getMessage());
+                }
+            }
+        }).start();
+    }
+    private void loadAirQualityData(City city) throws Exception {
+        String urlString = String.format(
+            "https://api.openweathermap.org/data/2.5/air_pollution?lat=%f&lon=%f&appid=%s",
+            city.lat, city.lon, OPENWEATHER_API_KEY
+        );
+
+        URL url = new URL(urlString);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(10000);
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            reader.close();
+
+            // Parse JSON response
+            JSONObject json = new JSONObject(response.toString());
+            JSONObject components = json.getJSONArray("list").getJSONObject(0).getJSONObject("components");
+
+            city.aqi = json.getJSONArray("list").getJSONObject(0).getJSONObject("main").getInt("aqi");
+            city.co = components.getDouble("co");
+            city.no2 = components.getDouble("no2");
+            city.o3 = components.getDouble("o3");
+            city.pm2_5 = components.getDouble("pm2_5");
+            city.pm10 = components.getDouble("pm10");
+            city.airQualityLoaded = true;
+
+            System.out.println("Air quality loaded for " + city.name + ": AQI " + city.aqi);
+        }
+    }
     private String buildGeoapifyUrl(int width, int height) {
         String area = String.format("rect:%f,%f,%f,%f", MIN_LON, MIN_LAT, MAX_LON, MAX_LAT);
         String style = "osm-bright";
@@ -328,6 +394,29 @@ public class SloveniaMap extends ApplicationAdapter {
         double lon = MIN_LON + (x / MAP_WIDTH) * (MAX_LON - MIN_LON);
         double lat = MIN_LAT + (y / MAP_HEIGHT) * (MAX_LAT - MIN_LAT);
         return new Vector2((float)lat, (float)lon);
+    }
+    private void createModeToggleButton() {
+        modeToggleButton = new TextButton("Air Quality Mode", skin);
+        modeToggleButton.setSize(180, 45);
+        modeToggleButton.setPosition(20, Gdx.graphics.getHeight() - 70);
+
+        modeToggleButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                airQualityMode = !airQualityMode;
+                modeToggleButton.setText(airQualityMode ? "Weather Mode" : "Air Quality Mode");
+
+                // Close panel if open and refresh if needed
+                if (showWeatherPanel && selectedCity != null) {
+                    showWeatherPanel = false;
+                    selectedCity = null;
+                }
+
+                System.out.println("Mode switched to: " + (airQualityMode ? "Air Quality" : "Weather"));
+            }
+        });
+
+        stage.addActor(modeToggleButton);
     }
 
     private void handleInput() {
@@ -475,7 +564,8 @@ public class SloveniaMap extends ApplicationAdapter {
                     if (editMode) {
                         showEditCityDialog(city);
                     } else {
-                        showWeatherPanel = city.weatherLoaded;
+                        boolean dataLoaded = airQualityMode ? city.airQualityLoaded : city.weatherLoaded;
+                        showWeatherPanel = dataLoaded;
                         panelAnimationProgress = 0f;
                     }
                     break;
@@ -546,12 +636,13 @@ public class SloveniaMap extends ApplicationAdapter {
                         new Thread(() -> {
                             try {
                                 loadWeatherData(newCity);
+                                loadAirQualityData(newCity);
                             } catch (Exception e) {
-                                System.err.println("Failed to load weather for new city: " + e.getMessage());
+                                System.err.println("Failed to load data for new city: " + e.getMessage());
                             }
                         }).start();
                     } else {
-                        System.out.println("Static mode: Skipping weather API call for new city");
+                        System.out.println("Static mode: Skipping  API call for new city");
                     }
 
                     dialog.hide();
@@ -597,7 +688,7 @@ public class SloveniaMap extends ApplicationAdapter {
         content.add(nameField).width(300).padBottom(15);
         content.row();
 
-        // Coordinates with "Pick on Map" button
+        // Coordinates with "Pick on Map" button (same as before)
         final TextField latField = new TextField(String.valueOf(city.lat), skin);
         final TextField lonField = new TextField(String.valueOf(city.lon), skin);
 
@@ -611,27 +702,18 @@ public class SloveniaMap extends ApplicationAdapter {
         pickLatLonButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Hide the dialog temporarily
                 dialog.hide();
-
-                // Enter location selection mode with callback
                 awaitingLocationClick = true;
                 pendingLocation = null;
 
-                // Set up callback to handle the selected location
                 locationPickCallback = new java.util.function.Consumer<Vector2>() {
                     @Override
                     public void accept(Vector2 geoCoords) {
-                        // Update the text fields with new coordinates
                         latField.setText(String.format("%.4f", geoCoords.x));
                         lonField.setText(String.format("%.4f", geoCoords.y));
-
-                        // Clear the callback and pending location
                         locationPickCallback = null;
                         pendingLocation = null;
                         awaitingLocationClick = false;
-
-                        // Show the dialog again
                         dialog.show(stage);
                     }
                 };
@@ -650,14 +732,14 @@ public class SloveniaMap extends ApplicationAdapter {
         content.row();
 
         // Static mode checkbox
-        final CheckBox staticCheckBox = new CheckBox(" Use Static Weather Data", skin);
+        final CheckBox staticCheckBox = new CheckBox(" Use Static Data", skin);
         staticCheckBox.setChecked(city.isStatic);
         content.add(staticCheckBox).left().padBottom(20);
         content.row();
 
-        // Weather data fields (only editable when static mode is on)
-        Label weatherLabel = new Label("Weather Data (editable when static):", skin);
-        weatherLabel.setColor(0.7f, 0.7f, 0.7f, 1f);
+        // === WEATHER DATA SECTION ===
+        Label weatherLabel = new Label("Weather Data:", skin);
+        weatherLabel.setColor(0.7f, 0.9f, 0.7f, 1f);
         content.add(weatherLabel).left().padBottom(10);
         content.row();
 
@@ -706,20 +788,82 @@ public class SloveniaMap extends ApplicationAdapter {
         iconField.setDisabled(!city.isStatic);
         content.add(new Label("Icon Code:", skin)).left().padBottom(5);
         content.row();
-        content.add(iconField).width(300).padBottom(15);
+        content.add(iconField).width(300).padBottom(20);
         content.row();
 
-        // Enable/disable weather fields based on static checkbox
+        // === AIR QUALITY DATA SECTION ===
+        Label airQualityLabel = new Label("Air Quality Data:", skin);
+        airQualityLabel.setColor(0.7f, 0.9f, 1f, 1f);
+        content.add(airQualityLabel).left().padBottom(10);
+        content.row();
+
+        final TextField aqiField = new TextField(
+            city.airQualityLoaded ? String.valueOf(city.aqi) : "1", skin);
+        aqiField.setDisabled(!city.isStatic);
+        content.add(new Label("AQI (1-5):", skin)).left().padBottom(5);
+        content.row();
+        content.add(aqiField).width(300).padBottom(10);
+        content.row();
+
+        final TextField coField = new TextField(
+            city.airQualityLoaded ? String.format("%.2f", city.co) : "0.0", skin);
+        coField.setDisabled(!city.isStatic);
+        content.add(new Label("CO (μg/m³):", skin)).left().padBottom(5);
+        content.row();
+        content.add(coField).width(300).padBottom(10);
+        content.row();
+
+        final TextField no2Field = new TextField(
+            city.airQualityLoaded ? String.format("%.2f", city.no2) : "0.0", skin);
+        no2Field.setDisabled(!city.isStatic);
+        content.add(new Label("NO₂ (μg/m³):", skin)).left().padBottom(5);
+        content.row();
+        content.add(no2Field).width(300).padBottom(10);
+        content.row();
+
+        final TextField o3Field = new TextField(
+            city.airQualityLoaded ? String.format("%.2f", city.o3) : "0.0", skin);
+        o3Field.setDisabled(!city.isStatic);
+        content.add(new Label("O₃ (μg/m³):", skin)).left().padBottom(5);
+        content.row();
+        content.add(o3Field).width(300).padBottom(10);
+        content.row();
+
+        final TextField pm25Field = new TextField(
+            city.airQualityLoaded ? String.format("%.2f", city.pm2_5) : "0.0", skin);
+        pm25Field.setDisabled(!city.isStatic);
+        content.add(new Label("PM2.5 (μg/m³):", skin)).left().padBottom(5);
+        content.row();
+        content.add(pm25Field).width(300).padBottom(10);
+        content.row();
+
+        final TextField pm10Field = new TextField(
+            city.airQualityLoaded ? String.format("%.2f", city.pm10) : "0.0", skin);
+        pm10Field.setDisabled(!city.isStatic);
+        content.add(new Label("PM10 (μg/m³):", skin)).left().padBottom(5);
+        content.row();
+        content.add(pm10Field).width(300).padBottom(15);
+        content.row();
+
+        // Enable/disable all fields based on static checkbox
         staticCheckBox.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 boolean isStatic = staticCheckBox.isChecked();
+                // Weather fields
                 tempField.setDisabled(!isStatic);
                 humidityField.setDisabled(!isStatic);
                 pressureField.setDisabled(!isStatic);
                 windSpeedField.setDisabled(!isStatic);
                 descriptionField.setDisabled(!isStatic);
                 iconField.setDisabled(!isStatic);
+                // Air quality fields
+                aqiField.setDisabled(!isStatic);
+                coField.setDisabled(!isStatic);
+                no2Field.setDisabled(!isStatic);
+                o3Field.setDisabled(!isStatic);
+                pm25Field.setDisabled(!isStatic);
+                pm10Field.setDisabled(!isStatic);
             }
         });
 
@@ -752,9 +896,10 @@ public class SloveniaMap extends ApplicationAdapter {
                     city.lon = newLon;
                     city.isStatic = staticCheckBox.isChecked();
 
-                    // If static mode is enabled, update weather data from fields
+                    // If static mode is enabled, update both weather and air quality data
                     if (city.isStatic) {
                         try {
+                            // Weather data
                             city.temperature = Double.parseDouble(tempField.getText().trim());
                             city.humidity = Integer.parseInt(humidityField.getText().trim());
                             city.pressure = Integer.parseInt(pressureField.getText().trim());
@@ -763,18 +908,28 @@ public class SloveniaMap extends ApplicationAdapter {
                             city.icon = iconField.getText().trim();
                             city.weatherLoaded = true;
 
-                            System.out.println("Updated static weather data for " + city.name);
+                            // Air quality data
+                            city.aqi = Integer.parseInt(aqiField.getText().trim());
+                            city.co = Double.parseDouble(coField.getText().trim());
+                            city.no2 = Double.parseDouble(no2Field.getText().trim());
+                            city.o3 = Double.parseDouble(o3Field.getText().trim());
+                            city.pm2_5 = Double.parseDouble(pm25Field.getText().trim());
+                            city.pm10 = Double.parseDouble(pm10Field.getText().trim());
+                            city.airQualityLoaded = true;
+
+                            System.out.println("Updated static data for " + city.name);
                         } catch (NumberFormatException e) {
-                            showErrorDialog("Please enter valid numbers for weather data");
+                            showErrorDialog("Please enter valid numbers for all data fields");
                             return;
                         }
                     } else if (!USE_STATIC_WEATHER_DATA) {
-                        // If not static and not in global static mode, reload from API
+                        // If not static, reload from API
                         new Thread(() -> {
                             try {
                                 loadWeatherData(city);
+                                loadAirQualityData(city);
                             } catch (Exception e) {
-                                System.err.println("Failed to reload weather: " + e.getMessage());
+                                System.err.println("Failed to reload data: " + e.getMessage());
                             }
                         }).start();
                     }
@@ -804,7 +959,7 @@ public class SloveniaMap extends ApplicationAdapter {
                 dialog.hide();
                 awaitingLocationClick = false;
                 pendingLocation = null;
-                locationPickCallback = null; // Clear callback
+                locationPickCallback = null;
             }
         });
 
@@ -818,7 +973,6 @@ public class SloveniaMap extends ApplicationAdapter {
         dialog.key(Input.Keys.ESCAPE, false);
         dialog.show(stage);
     }
-
     private void showDeleteConfirmDialog(final City city) {
         Dialog dialog = new Dialog("Confirm Delete", skin) {
             @Override
@@ -924,8 +1078,8 @@ public class SloveniaMap extends ApplicationAdapter {
             // Outer glow for selected or hovered city
             if (isSelected || isHovered) {
                 float pulseSize = 20 + (float)Math.sin(markerPulse) * 3;
-                Color tempColor = getTemperatureColor(city.temperature);
-                shapeRenderer.setColor(tempColor.r, tempColor.g, tempColor.b, 0.3f);
+                Color markerColor = airQualityMode ? getAQIColor(city.aqi) : getTemperatureColor(city.temperature);
+                shapeRenderer.setColor(markerColor.r, markerColor.g, markerColor.b, 0.3f);
                 shapeRenderer.circle(pos.x, pos.y, pulseSize);
             }
 
@@ -939,12 +1093,21 @@ public class SloveniaMap extends ApplicationAdapter {
             shapeRenderer.setColor(0, 0, 0, 0.4f);
             shapeRenderer.circle(pos.x + 1, pos.y - 1, isSelected ? 14 : 10);
 
-            // Main marker circle - temperature colored
-            if (city.weatherLoaded) {
-                Color tempColor = getTemperatureColor(city.temperature);
-                shapeRenderer.setColor(tempColor);
+            // Main marker circle - colored by mode
+            if (airQualityMode) {
+                if (city.airQualityLoaded) {
+                    Color aqiColor = getAQIColor(city.aqi);
+                    shapeRenderer.setColor(aqiColor);
+                } else {
+                    shapeRenderer.setColor(0.6f, 0.6f, 0.65f, 1f);
+                }
             } else {
-                shapeRenderer.setColor(0.6f, 0.6f, 0.65f, 1f);
+                if (city.weatherLoaded) {
+                    Color tempColor = getTemperatureColor(city.temperature);
+                    shapeRenderer.setColor(tempColor);
+                } else {
+                    shapeRenderer.setColor(0.6f, 0.6f, 0.65f, 1f);
+                }
             }
             shapeRenderer.circle(pos.x, pos.y, isSelected ? 13 : 9);
 
@@ -953,7 +1116,10 @@ public class SloveniaMap extends ApplicationAdapter {
             shapeRenderer.circle(pos.x, pos.y, isSelected ? 11 : 7.5f);
 
             // Inner core
-            if (city.weatherLoaded) {
+            if (airQualityMode && city.airQualityLoaded) {
+                Color aqiColor = getAQIColor(city.aqi);
+                shapeRenderer.setColor(aqiColor.r * 0.8f, aqiColor.g * 0.8f, aqiColor.b * 0.8f, 1f);
+            } else if (!airQualityMode && city.weatherLoaded) {
                 Color tempColor = getTemperatureColor(city.temperature);
                 shapeRenderer.setColor(tempColor.r * 0.8f, tempColor.g * 0.8f, tempColor.b * 0.8f, 1f);
             } else {
@@ -981,9 +1147,13 @@ public class SloveniaMap extends ApplicationAdapter {
         }
         batch.end();
 
-        // Draw weather panel if a city is selected
-        if (showWeatherPanel && selectedCity != null && selectedCity.weatherLoaded && !editMode) {
-            drawWeatherPanel();
+        // Draw weather/air quality panel if a city is selected
+        if (showWeatherPanel && selectedCity != null && !editMode) {
+            if (airQualityMode && selectedCity.airQualityLoaded) {
+                drawAirQualityPanel();
+            } else if (!airQualityMode && selectedCity.weatherLoaded) {
+                drawWeatherPanel();
+            }
         }
 
         // Draw control hints
@@ -1192,6 +1362,7 @@ public class SloveniaMap extends ApplicationAdapter {
         batch.end();
     }
 
+
     private void drawInfoCard(SpriteBatch batch, float x, float y, String label, String value) {
         // Card background (using shape renderer would be better, but keeping it simple)
         font.setColor(new Color(0.6f, 0.62f, 0.65f, 1f));
@@ -1218,6 +1389,7 @@ public class SloveniaMap extends ApplicationAdapter {
         shapeRenderer.rectLine(x - 4, y - 4, x + 4, y - 4, 2);
     }
 
+
     private void drawPressureIcon(float x, float y) {
         shapeRenderer.setColor(0.75f, 0.6f, 0.85f, 1f);
         // Gauge/meter shape
@@ -1238,6 +1410,198 @@ public class SloveniaMap extends ApplicationAdapter {
         shapeRenderer.triangle(x - 3, y + 1, x + 3, y + 1, x, y - 6);
     }
 
+    private void drawAirQualityPanel() {
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
+        batch.setProjectionMatrix(uiCamera.combined);
+
+        float panelX = Gdx.graphics.getWidth() - PANEL_WIDTH - PANEL_MARGIN;
+        float panelY = Gdx.graphics.getHeight() - PANEL_HEIGHT - PANEL_MARGIN;
+
+        float animatedX = panelX + (1 - easeOutCubic(panelAnimationProgress)) * (PANEL_WIDTH + PANEL_MARGIN);
+
+        // Draw panel background with shadow
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        shapeRenderer.setColor(0, 0, 0, 0.15f);
+        shapeRenderer.rect(animatedX + 8, panelY - 8, PANEL_WIDTH, PANEL_HEIGHT);
+        shapeRenderer.setColor(0, 0, 0, 0.1f);
+        shapeRenderer.rect(animatedX + 4, panelY - 4, PANEL_WIDTH, PANEL_HEIGHT);
+
+        shapeRenderer.setColor(0.11f, 0.13f, 0.16f, 0.98f);
+        shapeRenderer.rect(animatedX, panelY, PANEL_WIDTH, PANEL_HEIGHT);
+
+        // Header gradient based on AQI
+        Color aqiColor = getAQIColor(selectedCity.aqi);
+
+        for (int i = 0; i < 100; i++) {
+            float alpha = 0.85f - (i / 100f) * 0.45f;
+            shapeRenderer.setColor(aqiColor.r, aqiColor.g, aqiColor.b, alpha);
+            shapeRenderer.rect(animatedX, panelY + PANEL_HEIGHT - 100 + i, PANEL_WIDTH, 1);
+        }
+
+        shapeRenderer.setColor(aqiColor.r * 1.2f, aqiColor.g * 1.2f, aqiColor.b * 1.2f, 1f);
+        shapeRenderer.rect(animatedX, panelY + PANEL_HEIGHT - 3, PANEL_WIDTH, 3);
+
+        shapeRenderer.setColor(0.25f, 0.27f, 0.3f, 0.8f);
+        shapeRenderer.rect(animatedX + PANEL_PADDING, panelY + PANEL_HEIGHT - 105,
+            PANEL_WIDTH - PANEL_PADDING * 2, 2);
+
+        shapeRenderer.setColor(0.2f, 0.22f, 0.25f, 0.9f);
+        shapeRenderer.circle(animatedX + PANEL_WIDTH - 40, panelY + PANEL_HEIGHT - 40, 18);
+
+        shapeRenderer.end();
+
+        // Draw text content
+        batch.begin();
+
+        float textX = animatedX + PANEL_PADDING;
+        float textY = panelY + PANEL_HEIGHT - PANEL_PADDING - 5;
+
+        // City name
+        titleFont.setColor(1f, 1f, 1f, 0.15f);
+        titleFont.draw(batch, selectedCity.name, textX + 2, textY - 12);
+        titleFont.setColor(Color.WHITE);
+        titleFont.draw(batch, selectedCity.name, textX, textY - 10);
+
+        // Close button
+        font.setColor(0.9f, 0.9f, 0.9f, 1f);
+        font.draw(batch, "X", animatedX + PANEL_WIDTH - 47, textY - 10);
+
+        textY -= 90;
+
+        // AQI - large display
+        largeFont.setColor(0, 0, 0, 0.3f);
+        String aqiText = String.valueOf(selectedCity.aqi);
+        largeFont.draw(batch, aqiText, textX + 3, textY - 3);
+        largeFont.setColor(Color.WHITE);
+        largeFont.draw(batch, aqiText, textX, textY);
+
+        // AQI label
+        titleFont.setColor(new Color(0.8f, 0.8f, 0.8f, 1f));
+        titleFont.draw(batch, "AQI", textX + 90, textY - 10);
+
+        // AQI description
+        smallFont.setColor(new Color(0.85f, 0.87f, 0.9f, 1f));
+        smallFont.draw(batch, getAQIDescription(selectedCity.aqi), textX, textY - 50);
+
+        textY -= 105;
+
+        batch.end();
+
+        // Draw icons
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        float iconX = textX + 10;
+        float iconY = textY - 5;
+
+        drawPM25Icon(iconX, iconY);
+        iconY -= 50;
+
+//        drawPM10Icon(iconX, iconY);
+//        iconY -= 50;
+
+        drawO3Icon(iconX, iconY);
+        iconY -= 50;
+
+        drawNO2Icon(iconX, iconY);
+        iconY -= 50;
+//
+//        drawCOIcon(iconX, iconY);
+//        iconY -= 50;
+
+        drawLocationIcon(iconX, iconY);
+
+        shapeRenderer.end();
+
+        batch.begin();
+
+        // Draw info cards
+        drawInfoCard(batch, textX, textY, "PM2.5", String.format("%.1f μg/m³", selectedCity.pm2_5));
+        textY -= 50;
+
+//        drawInfoCard(batch, textX, textY, "PM10", String.format("%.1f μg/m³", selectedCity.pm10));
+//        textY -= 50;
+
+        drawInfoCard(batch, textX, textY, "Ozone (O₃)", String.format("%.1f μg/m³", selectedCity.o3));
+        textY -= 50;
+
+       drawInfoCard(batch, textX, textY, "NO₂", String.format("%.1f μg/m³", selectedCity.no2));
+        textY -= 50;
+//
+//        drawInfoCard(batch, textX, textY, "CO", String.format("%.1f μg/m³", selectedCity.co));
+//        textY -= 50;
+
+        drawInfoCard(batch, textX, textY, "Location",
+            String.format("%.2f N, %.2f E", selectedCity.lat, selectedCity.lon));
+
+        // Footer hint
+        textY = panelY + PANEL_PADDING + 10;
+        smallFont.setColor(new Color(0.5f, 0.52f, 0.55f, 1f));
+        smallFont.draw(batch, "Press ESC or click X to close", textX, textY);
+
+        batch.end();
+    }
+    private Color getAQIColor(int aqi) {
+        switch (aqi) {
+            case 1: return new Color(0.3f, 0.85f, 0.3f, 1f); // Good - Green
+            case 2: return new Color(0.8f, 0.85f, 0.3f, 1f); // Fair - Yellow
+            case 3: return new Color(1f, 0.7f, 0.2f, 1f); // Moderate - Orange
+            case 4: return new Color(1f, 0.4f, 0.3f, 1f); // Poor - Red
+            case 5: return new Color(0.8f, 0.2f, 0.5f, 1f); // Very Poor - Purple
+            default: return new Color(0.6f, 0.6f, 0.6f, 1f); // Unknown - Gray
+        }
+    }
+
+    private String getAQIDescription(int aqi) {
+        switch (aqi) {
+            case 1: return "Good";
+            case 2: return "Fair";
+            case 3: return "Moderate";
+            case 4: return "Poor";
+            case 5: return "Very Poor";
+            default: return "Unknown";
+        }
+    }
+
+    // Icon drawing methods for air quality pollutants:
+    private void drawPM25Icon(float x, float y) {
+        shapeRenderer.setColor(0.95f, 0.5f, 0.3f, 1f);
+        // Small particles
+        shapeRenderer.circle(x - 3, y + 3, 2.5f);
+        shapeRenderer.circle(x + 3, y + 1, 2f);
+        shapeRenderer.circle(x, y - 3, 2.5f);
+        shapeRenderer.circle(x + 4, y - 2, 1.5f);
+    }
+    private void drawPM10Icon(float x, float y) {
+        shapeRenderer.setColor(0.85f, 0.6f, 0.4f, 1f);
+        shapeRenderer.circle(x - 4, y + 3, 3.5f);
+        shapeRenderer.circle(x + 4, y, 3f);
+        shapeRenderer.circle(x, y - 4, 3.5f);
+    }
+
+    private void drawO3Icon(float x, float y) {
+        shapeRenderer.setColor(0.5f, 0.7f, 0.95f, 1f);
+        // Ozone molecule representation
+        shapeRenderer.circle(x, y + 4, 3f);
+        shapeRenderer.circle(x - 4, y - 2, 3f);
+        shapeRenderer.circle(x + 4, y - 2, 3f);
+    }
+
+    private void drawNO2Icon(float x, float y) {
+        shapeRenderer.setColor(0.9f, 0.6f, 0.3f, 1f);
+        // Chemical symbol representation
+        shapeRenderer.circle(x - 3, y, 3.5f);
+        shapeRenderer.circle(x + 3, y + 2, 2.5f);
+        shapeRenderer.circle(x + 3, y - 2, 2.5f);
+    }
+
+    private void drawCOIcon(float x, float y) {
+        shapeRenderer.setColor(0.7f, 0.5f, 0.8f, 1f);
+        // Carbon monoxide representation
+        shapeRenderer.circle(x - 3, y, 4f);
+        shapeRenderer.circle(x + 3, y, 3f);
+    }
     private void drawControlHints() {
         batch.setProjectionMatrix(uiCamera.combined);
         batch.begin();

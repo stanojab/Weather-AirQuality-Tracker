@@ -14,6 +14,14 @@ public class City {
     public String icon;
     public boolean weatherLoaded;
 
+    //AirQuality data
+    public int aqi;
+    public double co;
+    public double no2;
+    public double o3;
+    public double pm2_5;
+    public double pm10;
+    public boolean airQualityLoaded = false;
 
     public boolean isStatic;
 

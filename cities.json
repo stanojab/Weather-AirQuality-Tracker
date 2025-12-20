@@ -4,8 +4,8 @@
 	name: Ljubljana
 	lat: 46.0569
 	lon: 14.5058
-	temperature: 3.34
-	humidity: 93
+	temperature: -0.53
+	humidity: 100
 	pressure: 1024
 	windSpeed: 1.03
 	description: fog
@@ -25,10 +25,10 @@
 	name: Maribor
 	lat: 46.5547
 	lon: 15.6459
-	temperature: 0.97
-	humidity: 99
+	temperature: 0.78
+	humidity: 97
 	pressure: 1024
-	windSpeed: 0
+	windSpeed: 0.51
 	description: fog
 	icon: 50n
 	weatherLoaded: true
@@ -46,8 +46,8 @@
 	name: Celje
 	lat: 46.2395
 	lon: 15.2675
-	temperature: 3.19
-	humidity: 88
+	temperature: 3.74
+	humidity: 89
 	pressure: 1024
 	windSpeed: 0.8
 	description: clear sky
@@ -67,8 +67,8 @@
 	name: Kranj
 	lat: 46.2384
 	lon: 14.3555
-	temperature: -0.95
-	humidity: 93
+	temperature: -1.03
+	humidity: 100
 	pressure: 1024
 	windSpeed: 1.03
 	description: fog
@@ -88,8 +88,8 @@
 	name: Koper
 	lat: 45.5469
 	lon: 13.7301
-	temperature: 11.86
-	humidity: 96
+	temperature: 10.96
+	humidity: 93
 	pressure: 1024
 	windSpeed: 1.03
 	description: broken clouds
@@ -109,8 +109,8 @@
 	name: Novo Mesto
 	lat: 45.8039
 	lon: 15.1696
-	temperature: 9.56
-	humidity: 94
+	temperature: 9
+	humidity: 95
 	pressure: 1024
 	windSpeed: 0.79
 	description: clear sky
@@ -130,7 +130,7 @@
 	name: Velenje
 	lat: 46.3809
 	lon: 15.0985
-	temperature: 2.23
+	temperature: 2.34
 	humidity: 95
 	pressure: 1024
 	windSpeed: 1.01
@@ -153,8 +153,8 @@
 	lon: 13.6475
 	temperature: 8.5
 	humidity: 94
-	pressure: 1024
-	windSpeed: 1.79
+	pressure: 1023
+	windSpeed: 1.34
 	description: overcast clouds
 	icon: 04n
 	weatherLoaded: true
@@ -175,7 +175,7 @@
 	temperature: 1.19
 	humidity: 100
 	pressure: 1024
-	windSpeed: 0
+	windSpeed: 0.51
 	description: fog
 	icon: 50n
 	weatherLoaded: true
@@ -193,8 +193,8 @@
 	name: Murska Sobota
 	lat: 46.6611
 	lon: 16.1664
-	temperature: 2.46
-	humidity: 94
+	temperature: 2.55
+	humidity: 96
 	pressure: 1024
 	windSpeed: 0.85
 	description: clear sky
@@ -214,8 +214,8 @@
 	name: Slovenj Gradec
 	lat: 46.5101
 	lon: 15.0798
-	temperature: 1.53
-	humidity: 94
+	temperature: 1.67
+	humidity: 95
 	pressure: 1024
 	windSpeed: 1.23
 	description: clear sky
@@ -235,9 +235,9 @@
 	name: Kamnik
 	lat: 46.2026
 	lon: 14.9414
-	temperature: 1.64
-	humidity: 88
-	pressure: 1024
+	temperature: 1.75
+	humidity: 95
+	pressure: 1023
 	windSpeed: 0.96
 	description: clear sky
 	icon: 01n
@@ -256,8 +256,8 @@
 	name: Jesenice
 	lat: 46.4297
 	lon: 14.0531
-	temperature: 0.82
-	humidity: 93
+	temperature: 0.74
+	humidity: 94
 	pressure: 1024
 	windSpeed: 0.73
 	description: clear sky
@@ -277,9 +277,9 @@
 	name: Izola
 	lat: 45.5368
 	lon: 13.6614
-	temperature: 11.82
-	humidity: 96
-	pressure: 1023
+	temperature: 10.98
+	humidity: 93
+	pressure: 1024
 	windSpeed: 1.03
 	description: broken clouds
 	icon: 04n
@@ -298,7 +298,7 @@
 	name: Krško
 	lat: 45.9589
 	lon: 15.4919
-	temperature: 3.9
+	temperature: 2.9
 	humidity: 93
 	pressure: 1024
 	windSpeed: 2.06
@@ -320,7 +320,7 @@
 	lat: 46.4659
 	lon: 15.3057
 	temperature: -5.95
-	humidity: 94
+	humidity: 95
 	pressure: 1024
 	windSpeed: 0.87
 	description: clear sky
@@ -340,9 +340,9 @@
 	name: voda
 	lat: 45.6978
 	lon: 13.7931
-	temperature: 8.75
+	temperature: 8.66
 	humidity: 95
-	pressure: 1023
+	pressure: 1024
 	windSpeed: 1.03
 	description: overcast clouds
 	icon: 04n
@@ -361,14 +361,14 @@
 	name: daa
 	lat: 46.33
 	lon: 14.6987
-	temperature: -5.5
-	humidity: 93
+	temperature: -3
+	humidity: 95
 	pressure: 1024
 	windSpeed: 0.6
 	description: clear sky
 	icon: 01n
 	weatherLoaded: true
-	aqi: 2
+	aqi: 5
 	co: 331.84
 	no2: 13.56
 	o3: 23.16
@@ -382,20 +382,20 @@
 	name: airQualitytest
 	lat: 46.4078
 	lon: 14.8809
-	temperature: -5.27
-	humidity: 94
+	temperature: -1.93
+	humidity: 95
 	pressure: 1024
 	windSpeed: 0.94
 	description: clear sky
 	icon: 01n
 	weatherLoaded: true
-	aqi: 0
-	co: 0
-	no2: 0
-	o3: 0
-	pm2_5: 0
-	pm10: 0
-	airQualityLoaded: false
+	aqi: 2
+	co: 336.62
+	no2: 14.62
+	o3: 23.61
+	pm2_5: 11.51
+	pm10: 13.6
+	airQualityLoaded: true
 	isStatic: false
 }
 {
@@ -403,20 +403,20 @@
 	name: testWeatherData
 	lat: 46.096
 	lon: 14.1902
-	temperature: 1.1
-	humidity: 92
+	temperature: 4.62
+	humidity: 95
 	pressure: 1024
-	windSpeed: 0.6
+	windSpeed: 0.57
 	description: broken clouds
 	icon: 04n
 	weatherLoaded: true
-	aqi: 0
-	co: 0
-	no2: 0
-	o3: 0
-	pm2_5: 0
-	pm10: 0
-	airQualityLoaded: false
+	aqi: 2
+	co: 359.69
+	no2: 8.4
+	o3: 38.34
+	pm2_5: 13.45
+	pm10: 15.61
+	airQualityLoaded: true
 	isStatic: false
 }
 ]

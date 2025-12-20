@@ -688,7 +688,7 @@ public class SloveniaMap extends ApplicationAdapter {
         content.add(nameField).width(300).padBottom(15);
         content.row();
 
-        // Coordinates with "Pick on Map" button (same as before)
+        // Coordinates with "Pick on Map" button
         final TextField latField = new TextField(String.valueOf(city.lat), skin);
         final TextField lonField = new TextField(String.valueOf(city.lon), skin);
 
@@ -737,133 +737,131 @@ public class SloveniaMap extends ApplicationAdapter {
         content.add(staticCheckBox).left().padBottom(20);
         content.row();
 
-        // === WEATHER DATA SECTION ===
-        Label weatherLabel = new Label("Weather Data:", skin);
-        weatherLabel.setColor(0.7f, 0.9f, 0.7f, 1f);
-        content.add(weatherLabel).left().padBottom(10);
-        content.row();
+        // === CONDITIONAL DATA SECTIONS BASED ON MODE ===
 
-        final TextField tempField = new TextField(
-            city.weatherLoaded ? String.format("%.1f", city.temperature) : "0.0", skin);
-        tempField.setDisabled(!city.isStatic);
-        content.add(new Label("Temperature (°C):", skin)).left().padBottom(5);
-        content.row();
-        content.add(tempField).width(300).padBottom(10);
-        content.row();
+        // Weather data fields (only shown in weather mode)
+        final TextField tempField, humidityField, pressureField, windSpeedField;
 
-        final TextField humidityField = new TextField(
-            city.weatherLoaded ? String.valueOf(city.humidity) : "0", skin);
-        humidityField.setDisabled(!city.isStatic);
-        content.add(new Label("Humidity (%):", skin)).left().padBottom(5);
-        content.row();
-        content.add(humidityField).width(300).padBottom(10);
-        content.row();
+        // Air quality fields (only shown in air quality mode)
+        final TextField aqiField, no2Field, o3Field, pm25Field;
 
-        final TextField pressureField = new TextField(
-            city.weatherLoaded ? String.valueOf(city.pressure) : "0", skin);
-        pressureField.setDisabled(!city.isStatic);
-        content.add(new Label("Pressure (hPa):", skin)).left().padBottom(5);
-        content.row();
-        content.add(pressureField).width(300).padBottom(10);
-        content.row();
+        if (airQualityMode) {
+            // === AIR QUALITY DATA SECTION ===
+            Label airQualityLabel = new Label("Air Quality Data:", skin);
+            airQualityLabel.setColor(0.7f, 0.9f, 1f, 1f);
+            content.add(airQualityLabel).left().padBottom(10);
+            content.row();
 
-        final TextField windSpeedField = new TextField(
-            city.weatherLoaded ? String.format("%.1f", city.windSpeed) : "0.0", skin);
-        windSpeedField.setDisabled(!city.isStatic);
-        content.add(new Label("Wind Speed (m/s):", skin)).left().padBottom(5);
-        content.row();
-        content.add(windSpeedField).width(300).padBottom(10);
-        content.row();
+            aqiField = new TextField(
+                city.airQualityLoaded ? String.valueOf(city.aqi) : "1", skin);
+            aqiField.setDisabled(!city.isStatic);
+            content.add(new Label("AQI (1-5):", skin)).left().padBottom(5);
+            content.row();
+            content.add(aqiField).width(300).padBottom(10);
+            content.row();
 
-        final TextField descriptionField = new TextField(
-            city.weatherLoaded ? city.description : "", skin);
-        descriptionField.setDisabled(!city.isStatic);
-        content.add(new Label("Description:", skin)).left().padBottom(5);
-        content.row();
-        content.add(descriptionField).width(300).padBottom(10);
-        content.row();
 
-        final TextField iconField = new TextField(
-            city.weatherLoaded ? city.icon : "01d", skin);
-        iconField.setDisabled(!city.isStatic);
-        content.add(new Label("Icon Code:", skin)).left().padBottom(5);
-        content.row();
-        content.add(iconField).width(300).padBottom(20);
-        content.row();
+            no2Field = new TextField(
+                city.airQualityLoaded ? String.format("%.2f", city.no2) : "0.0", skin);
+            no2Field.setDisabled(!city.isStatic);
+            content.add(new Label("NO₂ (μg/m³):", skin)).left().padBottom(5);
+            content.row();
+            content.add(no2Field).width(300).padBottom(10);
+            content.row();
 
-        // === AIR QUALITY DATA SECTION ===
-        Label airQualityLabel = new Label("Air Quality Data:", skin);
-        airQualityLabel.setColor(0.7f, 0.9f, 1f, 1f);
-        content.add(airQualityLabel).left().padBottom(10);
-        content.row();
+            o3Field = new TextField(
+                city.airQualityLoaded ? String.format("%.2f", city.o3) : "0.0", skin);
+            o3Field.setDisabled(!city.isStatic);
+            content.add(new Label("O₃ (μg/m³):", skin)).left().padBottom(5);
+            content.row();
+            content.add(o3Field).width(300).padBottom(10);
+            content.row();
 
-        final TextField aqiField = new TextField(
-            city.airQualityLoaded ? String.valueOf(city.aqi) : "1", skin);
-        aqiField.setDisabled(!city.isStatic);
-        content.add(new Label("AQI (1-5):", skin)).left().padBottom(5);
-        content.row();
-        content.add(aqiField).width(300).padBottom(10);
-        content.row();
+            pm25Field = new TextField(
+                city.airQualityLoaded ? String.format("%.2f", city.pm2_5) : "0.0", skin);
+            pm25Field.setDisabled(!city.isStatic);
+            content.add(new Label("PM2.5 (μg/m³):", skin)).left().padBottom(5);
+            content.row();
+            content.add(pm25Field).width(300).padBottom(10);
+            content.row();
 
-        final TextField coField = new TextField(
-            city.airQualityLoaded ? String.format("%.2f", city.co) : "0.0", skin);
-        coField.setDisabled(!city.isStatic);
-        content.add(new Label("CO (μg/m³):", skin)).left().padBottom(5);
-        content.row();
-        content.add(coField).width(300).padBottom(10);
-        content.row();
 
-        final TextField no2Field = new TextField(
-            city.airQualityLoaded ? String.format("%.2f", city.no2) : "0.0", skin);
-        no2Field.setDisabled(!city.isStatic);
-        content.add(new Label("NO₂ (μg/m³):", skin)).left().padBottom(5);
-        content.row();
-        content.add(no2Field).width(300).padBottom(10);
-        content.row();
 
-        final TextField o3Field = new TextField(
-            city.airQualityLoaded ? String.format("%.2f", city.o3) : "0.0", skin);
-        o3Field.setDisabled(!city.isStatic);
-        content.add(new Label("O₃ (μg/m³):", skin)).left().padBottom(5);
-        content.row();
-        content.add(o3Field).width(300).padBottom(10);
-        content.row();
+            // Set weather fields to null since we're not showing them
+            tempField = null;
+            humidityField = null;
+            pressureField = null;
+            windSpeedField = null;
 
-        final TextField pm25Field = new TextField(
-            city.airQualityLoaded ? String.format("%.2f", city.pm2_5) : "0.0", skin);
-        pm25Field.setDisabled(!city.isStatic);
-        content.add(new Label("PM2.5 (μg/m³):", skin)).left().padBottom(5);
-        content.row();
-        content.add(pm25Field).width(300).padBottom(10);
-        content.row();
+        } else {
+            // === WEATHER DATA SECTION ===
+            Label weatherLabel = new Label("Weather Data:", skin);
+            weatherLabel.setColor(0.7f, 0.9f, 0.7f, 1f);
+            content.add(weatherLabel).left().padBottom(10);
+            content.row();
 
-        final TextField pm10Field = new TextField(
-            city.airQualityLoaded ? String.format("%.2f", city.pm10) : "0.0", skin);
-        pm10Field.setDisabled(!city.isStatic);
-        content.add(new Label("PM10 (μg/m³):", skin)).left().padBottom(5);
-        content.row();
-        content.add(pm10Field).width(300).padBottom(15);
-        content.row();
+            tempField = new TextField(
+                city.weatherLoaded ? String.format("%.1f", city.temperature) : "0.0", skin);
+            tempField.setDisabled(!city.isStatic);
+            content.add(new Label("Temperature (°C):", skin)).left().padBottom(5);
+            content.row();
+            content.add(tempField).width(300).padBottom(10);
+            content.row();
 
-        // Enable/disable all fields based on static checkbox
+            humidityField = new TextField(
+                city.weatherLoaded ? String.valueOf(city.humidity) : "0", skin);
+            humidityField.setDisabled(!city.isStatic);
+            content.add(new Label("Humidity (%):", skin)).left().padBottom(5);
+            content.row();
+            content.add(humidityField).width(300).padBottom(10);
+            content.row();
+
+            pressureField = new TextField(
+                city.weatherLoaded ? String.valueOf(city.pressure) : "0", skin);
+            pressureField.setDisabled(!city.isStatic);
+            content.add(new Label("Pressure (hPa):", skin)).left().padBottom(5);
+            content.row();
+            content.add(pressureField).width(300).padBottom(10);
+            content.row();
+
+            windSpeedField = new TextField(
+                city.weatherLoaded ? String.format("%.1f", city.windSpeed) : "0.0", skin);
+            windSpeedField.setDisabled(!city.isStatic);
+            content.add(new Label("Wind Speed (m/s):", skin)).left().padBottom(5);
+            content.row();
+            content.add(windSpeedField).width(300).padBottom(10);
+            content.row();
+
+
+
+            // Set air quality fields to null since we're not showing them
+            aqiField = null;
+
+            no2Field = null;
+            o3Field = null;
+            pm25Field = null;
+
+        }
+
+        // Enable/disable fields based on static checkbox
         staticCheckBox.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 boolean isStatic = staticCheckBox.isChecked();
-                // Weather fields
-                tempField.setDisabled(!isStatic);
-                humidityField.setDisabled(!isStatic);
-                pressureField.setDisabled(!isStatic);
-                windSpeedField.setDisabled(!isStatic);
-                descriptionField.setDisabled(!isStatic);
-                iconField.setDisabled(!isStatic);
-                // Air quality fields
-                aqiField.setDisabled(!isStatic);
-                coField.setDisabled(!isStatic);
-                no2Field.setDisabled(!isStatic);
-                o3Field.setDisabled(!isStatic);
-                pm25Field.setDisabled(!isStatic);
-                pm10Field.setDisabled(!isStatic);
+                if (airQualityMode) {
+                    // Enable/disable air quality fields
+                    if (aqiField != null) aqiField.setDisabled(!isStatic);
+                    if (no2Field != null) no2Field.setDisabled(!isStatic);
+                    if (o3Field != null) o3Field.setDisabled(!isStatic);
+                    if (pm25Field != null) pm25Field.setDisabled(!isStatic);
+
+                } else {
+                    // Enable/disable weather fields
+                    if (tempField != null) tempField.setDisabled(!isStatic);
+                    if (humidityField != null) humidityField.setDisabled(!isStatic);
+                    if (pressureField != null) pressureField.setDisabled(!isStatic);
+                    if (windSpeedField != null) windSpeedField.setDisabled(!isStatic);
+                }
             }
         });
 
@@ -896,28 +894,26 @@ public class SloveniaMap extends ApplicationAdapter {
                     city.lon = newLon;
                     city.isStatic = staticCheckBox.isChecked();
 
-                    // If static mode is enabled, update both weather and air quality data
+                    // If static mode is enabled, update the relevant data based on current mode
                     if (city.isStatic) {
                         try {
-                            // Weather data
-                            city.temperature = Double.parseDouble(tempField.getText().trim());
-                            city.humidity = Integer.parseInt(humidityField.getText().trim());
-                            city.pressure = Integer.parseInt(pressureField.getText().trim());
-                            city.windSpeed = Double.parseDouble(windSpeedField.getText().trim());
-                            city.description = descriptionField.getText().trim();
-                            city.icon = iconField.getText().trim();
-                            city.weatherLoaded = true;
-
-                            // Air quality data
-                            city.aqi = Integer.parseInt(aqiField.getText().trim());
-                            city.co = Double.parseDouble(coField.getText().trim());
-                            city.no2 = Double.parseDouble(no2Field.getText().trim());
-                            city.o3 = Double.parseDouble(o3Field.getText().trim());
-                            city.pm2_5 = Double.parseDouble(pm25Field.getText().trim());
-                            city.pm10 = Double.parseDouble(pm10Field.getText().trim());
-                            city.airQualityLoaded = true;
-
-                            System.out.println("Updated static data for " + city.name);
+                            if (airQualityMode) {
+                                // Update air quality data
+                                city.aqi = Integer.parseInt(aqiField.getText().trim());
+                                city.no2 = Double.parseDouble(no2Field.getText().trim());
+                                city.o3 = Double.parseDouble(o3Field.getText().trim());
+                                city.pm2_5 = Double.parseDouble(pm25Field.getText().trim());
+                                city.airQualityLoaded = true;
+                                System.out.println("Updated static air quality data for " + city.name);
+                            } else {
+                                // Update weather data
+                                city.temperature = Double.parseDouble(tempField.getText().trim());
+                                city.humidity = Integer.parseInt(humidityField.getText().trim());
+                                city.pressure = Integer.parseInt(pressureField.getText().trim());
+                                city.windSpeed = Double.parseDouble(windSpeedField.getText().trim());
+                                city.weatherLoaded = true;
+                                System.out.println("Updated static weather data for " + city.name);
+                            }
                         } catch (NumberFormatException e) {
                             showErrorDialog("Please enter valid numbers for all data fields");
                             return;
@@ -926,8 +922,11 @@ public class SloveniaMap extends ApplicationAdapter {
                         // If not static, reload from API
                         new Thread(() -> {
                             try {
-                                loadWeatherData(city);
-                                loadAirQualityData(city);
+                                if (airQualityMode) {
+                                    loadAirQualityData(city);
+                                } else {
+                                    loadWeatherData(city);
+                                }
                             } catch (Exception e) {
                                 System.err.println("Failed to reload data: " + e.getMessage());
                             }

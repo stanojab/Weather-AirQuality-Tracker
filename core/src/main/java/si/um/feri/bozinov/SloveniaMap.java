@@ -22,16 +22,12 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-
 
 public class SloveniaMap extends ApplicationAdapter {
     private SpriteBatch batch;
@@ -39,6 +35,8 @@ public class SloveniaMap extends ApplicationAdapter {
     private OrthographicCamera camera;
     private OrthographicCamera uiCamera;
     private ShapeRenderer shapeRenderer;
+
+    // Fonts
     private BitmapFont font;
     private BitmapFont titleFont;
     private BitmapFont smallFont;
@@ -49,6 +47,7 @@ public class SloveniaMap extends ApplicationAdapter {
     private Stage stage;
     private Skin skin;
     private java.util.function.Consumer<Vector2> locationPickCallback = null;
+
     // Slovenia bounding box
     private static final double MIN_LON = 13.3;
     private static final double MAX_LON = 16.6;
@@ -56,20 +55,14 @@ public class SloveniaMap extends ApplicationAdapter {
     private static final double MAX_LAT = 46.9;
 
     // Screen dimensions
-    private static final int MAP_WIDTH = 1280;
-    private static final int MAP_HEIGHT = 720;
+    private static final int MAP_WIDTH = 1920;
+    private static final int MAP_HEIGHT = 1080;
 
     // Camera control settings
     private static final float PAN_SPEED = 500f;
     private static final float ZOOM_SPEED = 2f;
-    private static final float MIN_ZOOM = 0.5f;
+    private static final float MIN_ZOOM = 0.3f;
     private static final float MAX_ZOOM = 1f;
-
-    // Weather panel settings
-    private static final int PANEL_WIDTH = 380;
-    private static final int PANEL_HEIGHT = 450;
-    private static final int PANEL_PADDING = 20;
-    private static final int PANEL_MARGIN = 30;
 
     private List<City> cities;
     private City selectedCity;
@@ -83,16 +76,28 @@ public class SloveniaMap extends ApplicationAdapter {
     private boolean awaitingLocationClick = false;
     private Vector2 pendingLocation = null;
 
-    //AirQualityMocde
+    // Camera animation
+    private boolean isAnimatingCamera = false;
+    private float cameraAnimationProgress = 0f;
+    private Vector2 cameraStartPos = new Vector2();
+    private Vector2 cameraTargetPos = new Vector2();
+    private float cameraStartZoom = 1f;
+    private float cameraTargetZoom = 1f;
+    private static final float CAMERA_ANIMATION_DURATION = 0.8f;
+    private static final float ZOOM_IN_LEVEL = 0.4f;
+
+    // Air Quality Mode
     private boolean airQualityMode = false;
     private TextButton modeToggleButton;
 
     private static final String GEOAPIFY_API_KEY = "930e7c22c63b486eac329474adc56afd";
-    private static final String OPENWEATHER_API_KEY = "c55932282557548fa0e13cf7975bfc0d";
     private static final String CITIES_FILE = "cities.json";
 
-    // Debug mode: set to true to use static data from JSON file instead of API calls
-    private static final boolean USE_STATIC_WEATHER_DATA = false;
+    // Manager and Renderer instances
+    private WeatherDataManager weatherDataManager;
+    private AirQualityDataManager airQualityDataManager;
+    private MapRenderer mapRenderer;
+    private UIRenderer uiRenderer;
 
     @Override
     public void create() {
@@ -120,14 +125,13 @@ public class SloveniaMap extends ApplicationAdapter {
         extraSmallFont.setColor(Color.WHITE);
         extraSmallFont.getData().setScale(0.95f);
 
-        // Setup map camera
+        // Setup cameras
         camera = new OrthographicCamera();
         camera.setToOrtho(false, MAP_WIDTH, MAP_HEIGHT);
         camera.position.set(MAP_WIDTH / 2f, MAP_HEIGHT / 2f, 0);
         camera.zoom = 0.9f;
         camera.update();
 
-        // Setup UI camera
         uiCamera = new OrthographicCamera();
         uiCamera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
@@ -135,7 +139,7 @@ public class SloveniaMap extends ApplicationAdapter {
         stage = new Stage(new ScreenViewport());
         skin = new Skin(Gdx.files.internal("uiskin.json"));
 
-        // Create input multiplexer to handle both stage and map input
+        // Create input multiplexer
         com.badlogic.gdx.InputMultiplexer multiplexer = new com.badlogic.gdx.InputMultiplexer();
         multiplexer.addProcessor(stage);
         multiplexer.addProcessor(new com.badlogic.gdx.InputAdapter() {
@@ -146,6 +150,12 @@ public class SloveniaMap extends ApplicationAdapter {
         });
         Gdx.input.setInputProcessor(multiplexer);
 
+        // Initialize managers and renderers
+        weatherDataManager = new WeatherDataManager();
+        airQualityDataManager = new AirQualityDataManager();
+        mapRenderer = new MapRenderer(shapeRenderer, smallFont);
+        uiRenderer = new UIRenderer(shapeRenderer, batch, font, titleFont, smallFont, largeFont, extraSmallFont);
+
         // Load or initialize cities
         loadCitiesFromFile();
         if (cities == null || cities.isEmpty()) {
@@ -153,10 +163,8 @@ public class SloveniaMap extends ApplicationAdapter {
             saveCitiesToFile();
         }
 
-        // Build Geoapify Static Maps API URL
+        // Load map texture
         String mapUrl = buildGeoapifyUrl(MAP_WIDTH, MAP_HEIGHT);
-
-        // Load the map texture from URL
         try {
             mapTexture = downloadMapTexture(mapUrl);
             System.out.println("Map loaded successfully!");
@@ -164,17 +172,16 @@ public class SloveniaMap extends ApplicationAdapter {
             System.err.println("Failed to load map: " + e.getMessage());
             e.printStackTrace();
         }
+
         createModeToggleButton();
 
-
-        loadWeatherDataForAllCities();
-        loadAirQualityDataForAllCities();
+        // Load weather and air quality data
+        weatherDataManager.loadWeatherDataForAllCities(cities);
+        airQualityDataManager.loadAirQualityDataForAllCities(cities);
     }
 
     private void initializeDefaultCities() {
         cities = new ArrayList<>();
-
-        // Major cities in Slovenia with their coordinates
         cities.add(new City("Ljubljana", 46.0569, 14.5058));
         cities.add(new City("Maribor", 46.5547, 15.6459));
         cities.add(new City("Celje", 46.2395, 15.2675));
@@ -220,126 +227,6 @@ public class SloveniaMap extends ApplicationAdapter {
         }
     }
 
-    private void loadWeatherDataForAllCities() {
-        if (USE_STATIC_WEATHER_DATA) {
-            System.out.println("Using static weather data from JSON file");
-            return; // Weather data already loaded from file
-        }
-
-        new Thread(() -> {
-            for (City city : cities) {
-                // Skip API call if city is marked as static
-                if (city.isStatic) {
-                    System.out.println("Skipping API call for static city: " + city.name);
-                    continue;
-                }
-
-                try {
-                    loadWeatherData(city);
-                    Thread.sleep(100);
-                } catch (Exception e) {
-                    System.err.println("Failed to load weather for " + city.name + ": " + e.getMessage());
-                }
-            }
-        }).start();
-    }
-
-    private void loadWeatherData(City city) throws Exception {
-        String urlString = String.format(
-            "https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&units=metric&appid=%s",
-            city.lat, city.lon, OPENWEATHER_API_KEY
-        );
-
-        URL url = new URL(urlString);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("GET");
-        connection.setConnectTimeout(10000);
-        connection.setReadTimeout(10000);
-
-        int responseCode = connection.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-            }
-            reader.close();
-
-            // Parse JSON response
-            JSONObject json = new JSONObject(response.toString());
-
-            city.temperature = json.getJSONObject("main").getDouble("temp");
-            city.humidity = json.getJSONObject("main").getInt("humidity");
-            city.pressure = json.getJSONObject("main").getInt("pressure");
-            city.windSpeed = json.getJSONObject("wind").getDouble("speed");
-            city.description = json.getJSONArray("weather").getJSONObject(0).getString("description");
-            city.icon = json.getJSONArray("weather").getJSONObject(0).getString("icon");
-            city.weatherLoaded = true;
-
-            System.out.println("Weather loaded for " + city.name + ": " + city.temperature + "°C");
-        }
-    }
-
-    private void loadAirQualityDataForAllCities() {
-        if (USE_STATIC_WEATHER_DATA) {
-            System.out.println("Using static air quality data from JSON file");
-            return;
-        }
-
-        new Thread(() -> {
-            for (City city : cities) {
-                if (city.isStatic) {
-                    System.out.println("Skipping API call for static city: " + city.name);
-                    continue;
-                }
-
-                try {
-                    loadAirQualityData(city);
-                    Thread.sleep(100);
-                } catch (Exception e) {
-                    System.err.println("Failed to load air quality for " + city.name + ": " + e.getMessage());
-                }
-            }
-        }).start();
-    }
-    private void loadAirQualityData(City city) throws Exception {
-        String urlString = String.format(
-            "https://api.openweathermap.org/data/2.5/air_pollution?lat=%f&lon=%f&appid=%s",
-            city.lat, city.lon, OPENWEATHER_API_KEY
-        );
-
-        URL url = new URL(urlString);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("GET");
-        connection.setConnectTimeout(10000);
-        connection.setReadTimeout(10000);
-
-        int responseCode = connection.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-            }
-            reader.close();
-
-            // Parse JSON response
-            JSONObject json = new JSONObject(response.toString());
-            JSONObject components = json.getJSONArray("list").getJSONObject(0).getJSONObject("components");
-
-            city.aqi = json.getJSONArray("list").getJSONObject(0).getJSONObject("main").getInt("aqi");
-            city.co = components.getDouble("co");
-            city.no2 = components.getDouble("no2");
-            city.o3 = components.getDouble("o3");
-            city.pm2_5 = components.getDouble("pm2_5");
-            city.pm10 = components.getDouble("pm10");
-            city.airQualityLoaded = true;
-
-            System.out.println("Air quality loaded for " + city.name + ": AQI " + city.aqi);
-        }
-    }
     private String buildGeoapifyUrl(int width, int height) {
         String area = String.format("rect:%f,%f,%f,%f", MIN_LON, MIN_LAT, MAX_LON, MAX_LAT);
         String style = "osm-bright";
@@ -371,7 +258,6 @@ public class SloveniaMap extends ApplicationAdapter {
             byte[] imageData = buffer.toByteArray();
             inputStream.close();
 
-            // Create Pixmap from image data
             Pixmap pixmap = new Pixmap(imageData, 0, imageData.length);
             Texture texture = new Texture(pixmap);
             pixmap.dispose();
@@ -382,19 +268,6 @@ public class SloveniaMap extends ApplicationAdapter {
         }
     }
 
-    private Vector2 geoToScreen(double lat, double lon) {
-        // Convert geographic coordinates to screen coordinates
-        float x = (float) ((lon - MIN_LON) / (MAX_LON - MIN_LON) * MAP_WIDTH);
-        float y = (float) ((lat - MIN_LAT) / (MAX_LAT - MIN_LAT) * MAP_HEIGHT);
-        return new Vector2(x, y);
-    }
-
-    private Vector2 screenToGeo(float x, float y) {
-        // Convert screen coordinates to geographic coordinates
-        double lon = MIN_LON + (x / MAP_WIDTH) * (MAX_LON - MIN_LON);
-        double lat = MIN_LAT + (y / MAP_HEIGHT) * (MAX_LAT - MIN_LAT);
-        return new Vector2((float)lat, (float)lon);
-    }
     private void createModeToggleButton() {
         modeToggleButton = new TextButton("Air Quality Mode", skin);
         modeToggleButton.setSize(180, 45);
@@ -406,7 +279,6 @@ public class SloveniaMap extends ApplicationAdapter {
                 airQualityMode = !airQualityMode;
                 modeToggleButton.setText(airQualityMode ? "Weather Mode" : "Air Quality Mode");
 
-                // Close panel if open and refresh if needed
                 if (showWeatherPanel && selectedCity != null) {
                     showWeatherPanel = false;
                     selectedCity = null;
@@ -417,6 +289,63 @@ public class SloveniaMap extends ApplicationAdapter {
         });
 
         stage.addActor(modeToggleButton);
+    }
+
+    private void animateCameraToCity(City city) {
+        Vector2 cityScreenPos = mapRenderer.geoToScreen(city.lat, city.lon);
+
+        // Store current camera state
+        cameraStartPos.set(camera.position.x, camera.position.y);
+        cameraStartZoom = camera.zoom;
+
+        // Set target camera state
+        cameraTargetPos.set(cityScreenPos.x, cityScreenPos.y);
+        cameraTargetZoom = ZOOM_IN_LEVEL;
+
+        // Start animation
+        isAnimatingCamera = true;
+        cameraAnimationProgress = 0f;
+    }
+
+    private void updateCameraAnimation(float delta) {
+        if (!isAnimatingCamera) return;
+
+        cameraAnimationProgress += delta / CAMERA_ANIMATION_DURATION;
+
+        if (cameraAnimationProgress >= 1f) {
+            // Animation complete
+            cameraAnimationProgress = 1f;
+            isAnimatingCamera = false;
+        }
+
+        // Ease-out cubic interpolation for smooth animation
+        float t = easeOutCubic(cameraAnimationProgress);
+
+        // Interpolate position
+        camera.position.x = cameraStartPos.x + (cameraTargetPos.x - cameraStartPos.x) * t;
+        camera.position.y = cameraStartPos.y + (cameraTargetPos.y - cameraStartPos.y) * t;
+
+        // Interpolate zoom
+        camera.zoom = cameraStartZoom + (cameraTargetZoom - cameraStartZoom) * t;
+
+        // Clamp to bounds
+        camera.zoom = MathUtils.clamp(camera.zoom, MIN_ZOOM, MAX_ZOOM);
+
+        float effectiveWidth = MAP_WIDTH * camera.zoom;
+        float effectiveHeight = MAP_HEIGHT * camera.zoom;
+
+        camera.position.x = MathUtils.clamp(camera.position.x,
+            effectiveWidth / 2f,
+            MAP_WIDTH - effectiveWidth / 2f);
+        camera.position.y = MathUtils.clamp(camera.position.y,
+            effectiveHeight / 2f,
+            MAP_HEIGHT - effectiveHeight / 2f);
+
+        camera.update();
+    }
+
+    private float easeOutCubic(float t) {
+        return 1 - (float)Math.pow(1 - t, 3);
     }
 
     private void handleInput() {
@@ -452,27 +381,30 @@ public class SloveniaMap extends ApplicationAdapter {
             showDeleteConfirmDialog(selectedCity);
         }
 
-        // Panning with arrow keys
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            camera.position.x -= moveAmount;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            camera.position.x += moveAmount;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            camera.position.y += moveAmount;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            camera.position.y -= moveAmount;
-        }
+        // Only allow manual camera control if not animating
+        if (!isAnimatingCamera) {
+            // Panning with arrow keys
+            if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+                camera.position.x -= moveAmount;
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
+                camera.position.x += moveAmount;
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
+                camera.position.y += moveAmount;
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
+                camera.position.y -= moveAmount;
+            }
 
-        // Zooming with +/- keys
-        if (Gdx.input.isKeyPressed(Input.Keys.PLUS) || Gdx.input.isKeyPressed(Input.Keys.EQUALS) ||
-            Gdx.input.isKeyPressed(Input.Keys.PAGE_UP)) {
-            camera.zoom -= ZOOM_SPEED * delta;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.MINUS) || Gdx.input.isKeyPressed(Input.Keys.PAGE_DOWN)) {
-            camera.zoom += ZOOM_SPEED * delta;
+            // Zooming with +/- keys
+            if (Gdx.input.isKeyPressed(Input.Keys.PLUS) || Gdx.input.isKeyPressed(Input.Keys.EQUALS) ||
+                Gdx.input.isKeyPressed(Input.Keys.PAGE_UP)) {
+                camera.zoom -= ZOOM_SPEED * delta;
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.MINUS) || Gdx.input.isKeyPressed(Input.Keys.PAGE_DOWN)) {
+                camera.zoom += ZOOM_SPEED * delta;
+            }
         }
 
         // Close panel with ESC
@@ -481,21 +413,23 @@ public class SloveniaMap extends ApplicationAdapter {
             selectedCity = null;
         }
 
-        // Clamp zoom
-        camera.zoom = MathUtils.clamp(camera.zoom, MIN_ZOOM, MAX_ZOOM);
+        // Clamp zoom (only if not animating, animation handles its own clamping)
+        if (!isAnimatingCamera) {
+            camera.zoom = MathUtils.clamp(camera.zoom, MIN_ZOOM, MAX_ZOOM);
 
-        // Keep camera within map bounds
-        float effectiveWidth = MAP_WIDTH * camera.zoom;
-        float effectiveHeight = MAP_HEIGHT * camera.zoom;
+            // Keep camera within map bounds
+            float effectiveWidth = MAP_WIDTH * camera.zoom;
+            float effectiveHeight = MAP_HEIGHT * camera.zoom;
 
-        camera.position.x = MathUtils.clamp(camera.position.x,
-            effectiveWidth / 2f,
-            MAP_WIDTH - effectiveWidth / 2f);
-        camera.position.y = MathUtils.clamp(camera.position.y,
-            effectiveHeight / 2f,
-            MAP_HEIGHT - effectiveHeight / 2f);
+            camera.position.x = MathUtils.clamp(camera.position.x,
+                effectiveWidth / 2f,
+                MAP_WIDTH - effectiveWidth / 2f);
+            camera.position.y = MathUtils.clamp(camera.position.y,
+                effectiveHeight / 2f,
+                MAP_HEIGHT - effectiveHeight / 2f);
 
-        camera.update();
+            camera.update();
+        }
 
         // Update hovered city
         if (stage.getKeyboardFocus() == null && !awaitingLocationClick) {
@@ -504,7 +438,7 @@ public class SloveniaMap extends ApplicationAdapter {
             hoveredCity = null;
 
             for (City city : cities) {
-                Vector2 cityPos = geoToScreen(city.lat, city.lon);
+                Vector2 cityPos = mapRenderer.geoToScreen(city.lat, city.lon);
                 float distance = Vector2.dst(touchPos.x, touchPos.y, cityPos.x, cityPos.y);
 
                 if (distance < 15) {
@@ -516,19 +450,16 @@ public class SloveniaMap extends ApplicationAdapter {
 
         // Handle city clicks or location selection
         if (Gdx.input.justTouched() && stage.getKeyboardFocus() == null) {
-            // If awaiting location click, capture the coordinates
             if (awaitingLocationClick) {
                 Vector3 touchPos = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
                 camera.unproject(touchPos);
 
-                Vector2 geoCoords = screenToGeo(touchPos.x, touchPos.y);
+                Vector2 geoCoords = mapRenderer.screenToGeo(touchPos.x, touchPos.y);
                 pendingLocation = new Vector2(touchPos.x, touchPos.y);
 
-                // Show dialog with pre-filled coordinates
                 if (locationPickCallback != null) {
                     locationPickCallback.accept(geoCoords);
                 } else {
-                    // No callback means we're adding a new city
                     showAddCityDialog(geoCoords.x, geoCoords.y);
                     awaitingLocationClick = false;
                 }
@@ -537,6 +468,9 @@ public class SloveniaMap extends ApplicationAdapter {
 
             // Check if clicking on close button of panel
             if (showWeatherPanel) {
+                int PANEL_WIDTH = 380;
+                int PANEL_HEIGHT = 450;
+                int PANEL_MARGIN = 30;
                 float panelX = Gdx.graphics.getWidth() - PANEL_WIDTH - PANEL_MARGIN;
                 float panelY = Gdx.graphics.getHeight() - PANEL_HEIGHT - PANEL_MARGIN;
                 float closeX = panelX + PANEL_WIDTH - 45;
@@ -555,7 +489,7 @@ public class SloveniaMap extends ApplicationAdapter {
             camera.unproject(touchPos);
 
             for (City city : cities) {
-                Vector2 cityPos = geoToScreen(city.lat, city.lon);
+                Vector2 cityPos = mapRenderer.geoToScreen(city.lat, city.lon);
                 float distance = Vector2.dst(touchPos.x, touchPos.y, cityPos.x, cityPos.y);
 
                 if (distance < 15) {
@@ -567,6 +501,9 @@ public class SloveniaMap extends ApplicationAdapter {
                         boolean dataLoaded = airQualityMode ? city.airQualityLoaded : city.weatherLoaded;
                         showWeatherPanel = dataLoaded;
                         panelAnimationProgress = 0f;
+
+                        // Animate camera to the city
+                        animateCameraToCity(city);
                     }
                     break;
                 }
@@ -631,18 +568,15 @@ public class SloveniaMap extends ApplicationAdapter {
                     cities.add(newCity);
                     saveCitiesToFile();
 
-                    // Load weather data for new city (only if not in static mode)
-                    if (!USE_STATIC_WEATHER_DATA) {
+                    if (!weatherDataManager.isUsingStaticData()) {
                         new Thread(() -> {
                             try {
-                                loadWeatherData(newCity);
-                                loadAirQualityData(newCity);
+                                weatherDataManager.loadWeatherData(newCity);
+                                airQualityDataManager.loadAirQualityData(newCity);
                             } catch (Exception e) {
                                 System.err.println("Failed to load data for new city: " + e.getMessage());
                             }
                         }).start();
-                    } else {
-                        System.out.println("Static mode: Skipping  API call for new city");
                     }
 
                     dialog.hide();
@@ -681,14 +615,12 @@ public class SloveniaMap extends ApplicationAdapter {
         Table content = dialog.getContentTable();
         content.pad(20);
 
-        // City name field
         final TextField nameField = new TextField(city.name, skin);
         content.add(new Label("City Name:", skin)).left().padBottom(5);
         content.row();
         content.add(nameField).width(300).padBottom(15);
         content.row();
 
-        // Coordinates with "Pick on Map" button
         final TextField latField = new TextField(String.valueOf(city.lat), skin);
         final TextField lonField = new TextField(String.valueOf(city.lon), skin);
 
@@ -731,22 +663,16 @@ public class SloveniaMap extends ApplicationAdapter {
         content.add(lonField).width(300).padBottom(20);
         content.row();
 
-        // Static mode checkbox
         final CheckBox staticCheckBox = new CheckBox(" Use Static Data", skin);
         staticCheckBox.setChecked(city.isStatic);
         content.add(staticCheckBox).left().padBottom(20);
         content.row();
 
-        // === CONDITIONAL DATA SECTIONS BASED ON MODE ===
-
-        // Weather data fields (only shown in weather mode)
+        // Data fields based on mode
         final TextField tempField, humidityField, pressureField, windSpeedField;
-
-        // Air quality fields (only shown in air quality mode)
         final TextField aqiField, no2Field, o3Field, pm25Field;
 
         if (airQualityMode) {
-            // === AIR QUALITY DATA SECTION ===
             Label airQualityLabel = new Label("Air Quality Data:", skin);
             airQualityLabel.setColor(0.7f, 0.9f, 1f, 1f);
             content.add(airQualityLabel).left().padBottom(10);
@@ -759,7 +685,6 @@ public class SloveniaMap extends ApplicationAdapter {
             content.row();
             content.add(aqiField).width(300).padBottom(10);
             content.row();
-
 
             no2Field = new TextField(
                 city.airQualityLoaded ? String.format("%.2f", city.no2) : "0.0", skin);
@@ -785,16 +710,12 @@ public class SloveniaMap extends ApplicationAdapter {
             content.add(pm25Field).width(300).padBottom(10);
             content.row();
 
-
-
-            // Set weather fields to null since we're not showing them
             tempField = null;
             humidityField = null;
             pressureField = null;
             windSpeedField = null;
 
         } else {
-            // === WEATHER DATA SECTION ===
             Label weatherLabel = new Label("Weather Data:", skin);
             weatherLabel.setColor(0.7f, 0.9f, 0.7f, 1f);
             content.add(weatherLabel).left().padBottom(10);
@@ -832,31 +753,22 @@ public class SloveniaMap extends ApplicationAdapter {
             content.add(windSpeedField).width(300).padBottom(10);
             content.row();
 
-
-
-            // Set air quality fields to null since we're not showing them
             aqiField = null;
-
             no2Field = null;
             o3Field = null;
             pm25Field = null;
-
         }
 
-        // Enable/disable fields based on static checkbox
         staticCheckBox.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 boolean isStatic = staticCheckBox.isChecked();
                 if (airQualityMode) {
-                    // Enable/disable air quality fields
                     if (aqiField != null) aqiField.setDisabled(!isStatic);
                     if (no2Field != null) no2Field.setDisabled(!isStatic);
                     if (o3Field != null) o3Field.setDisabled(!isStatic);
                     if (pm25Field != null) pm25Field.setDisabled(!isStatic);
-
                 } else {
-                    // Enable/disable weather fields
                     if (tempField != null) tempField.setDisabled(!isStatic);
                     if (humidityField != null) humidityField.setDisabled(!isStatic);
                     if (pressureField != null) pressureField.setDisabled(!isStatic);
@@ -888,44 +800,37 @@ public class SloveniaMap extends ApplicationAdapter {
                         return;
                     }
 
-                    // Update basic city info
                     city.name = newName;
                     city.lat = newLat;
                     city.lon = newLon;
                     city.isStatic = staticCheckBox.isChecked();
 
-                    // If static mode is enabled, update the relevant data based on current mode
                     if (city.isStatic) {
                         try {
                             if (airQualityMode) {
-                                // Update air quality data
                                 city.aqi = Integer.parseInt(aqiField.getText().trim());
                                 city.no2 = Double.parseDouble(no2Field.getText().trim());
                                 city.o3 = Double.parseDouble(o3Field.getText().trim());
                                 city.pm2_5 = Double.parseDouble(pm25Field.getText().trim());
                                 city.airQualityLoaded = true;
-                                System.out.println("Updated static air quality data for " + city.name);
                             } else {
-                                // Update weather data
                                 city.temperature = Double.parseDouble(tempField.getText().trim());
                                 city.humidity = Integer.parseInt(humidityField.getText().trim());
                                 city.pressure = Integer.parseInt(pressureField.getText().trim());
                                 city.windSpeed = Double.parseDouble(windSpeedField.getText().trim());
                                 city.weatherLoaded = true;
-                                System.out.println("Updated static weather data for " + city.name);
                             }
                         } catch (NumberFormatException e) {
                             showErrorDialog("Please enter valid numbers for all data fields");
                             return;
                         }
-                    } else if (!USE_STATIC_WEATHER_DATA) {
-                        // If not static, reload from API
+                    } else if (!weatherDataManager.isUsingStaticData()) {
                         new Thread(() -> {
                             try {
                                 if (airQualityMode) {
-                                    loadAirQualityData(city);
+                                    airQualityDataManager.loadAirQualityData(city);
                                 } else {
-                                    loadWeatherData(city);
+                                    weatherDataManager.loadWeatherData(city);
                                 }
                             } catch (Exception e) {
                                 System.err.println("Failed to reload data: " + e.getMessage());
@@ -972,6 +877,7 @@ public class SloveniaMap extends ApplicationAdapter {
         dialog.key(Input.Keys.ESCAPE, false);
         dialog.show(stage);
     }
+
     private void showDeleteConfirmDialog(final City city) {
         Dialog dialog = new Dialog("Confirm Delete", skin) {
             @Override
@@ -1000,7 +906,6 @@ public class SloveniaMap extends ApplicationAdapter {
         Dialog dialog = new Dialog("Error", skin) {
             @Override
             protected void result(Object object) {
-                // Just close the dialog
             }
         };
         dialog.text(message);
@@ -1014,7 +919,6 @@ public class SloveniaMap extends ApplicationAdapter {
         Dialog dialog = new Dialog("Success", skin) {
             @Override
             protected void result(Object object) {
-                // Just close the dialog
             }
         };
         dialog.text(message);
@@ -1028,16 +932,18 @@ public class SloveniaMap extends ApplicationAdapter {
     public void render() {
         handleInput();
 
-        // Update animations
         float delta = Gdx.graphics.getDeltaTime();
         markerPulse += delta * 2f;
         if (showWeatherPanel && panelAnimationProgress < 1f) {
             panelAnimationProgress = Math.min(1f, panelAnimationProgress + delta * 4f);
         }
 
+        // Update camera animation
+        updateCameraAnimation(delta);
+
         ScreenUtils.clear(0.12f, 0.15f, 0.2f, 1f);
 
-        // Draw map with slight vignette effect
+        // Draw map
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         if (mapTexture != null) {
@@ -1050,596 +956,45 @@ public class SloveniaMap extends ApplicationAdapter {
         // Draw pending location marker
         if (awaitingLocationClick && pendingLocation != null) {
             shapeRenderer.setProjectionMatrix(camera.combined);
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-            float pulseSize = 20 + (float)Math.sin(markerPulse * 3) * 5;
-            shapeRenderer.setColor(0.2f, 1f, 0.4f, 0.3f);
-            shapeRenderer.circle(pendingLocation.x, pendingLocation.y, pulseSize);
-
-            shapeRenderer.setColor(0.2f, 1f, 0.4f, 0.8f);
-            shapeRenderer.circle(pendingLocation.x, pendingLocation.y, 12);
-
-            shapeRenderer.setColor(1f, 1f, 1f, 1f);
-            shapeRenderer.circle(pendingLocation.x, pendingLocation.y, 8);
-
-            shapeRenderer.end();
+            mapRenderer.drawPendingLocationMarker(pendingLocation, markerPulse);
         }
 
-        // Draw city markers with improved styling
+        // Draw city markers
         shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        for (City city : cities) {
-            Vector2 pos = geoToScreen(city.lat, city.lon);
-            boolean isSelected = (city == selectedCity);
-            boolean isHovered = (city == hoveredCity);
-
-            // Outer glow for selected or hovered city
-            if (isSelected || isHovered) {
-                float pulseSize = 20 + (float)Math.sin(markerPulse) * 3;
-                Color markerColor = airQualityMode ? getAQIColor(city.aqi) : getTemperatureColor(city.temperature);
-                shapeRenderer.setColor(markerColor.r, markerColor.g, markerColor.b, 0.3f);
-                shapeRenderer.circle(pos.x, pos.y, pulseSize);
-            }
-
-            // Edit mode indicator
-            if (editMode) {
-                shapeRenderer.setColor(1f, 0.8f, 0.2f, 0.4f);
-                shapeRenderer.circle(pos.x, pos.y, 16);
-            }
-
-            // Shadow
-            shapeRenderer.setColor(0, 0, 0, 0.4f);
-            shapeRenderer.circle(pos.x + 1, pos.y - 1, isSelected ? 14 : 10);
-
-            // Main marker circle - colored by mode
-            if (airQualityMode) {
-                if (city.airQualityLoaded) {
-                    Color aqiColor = getAQIColor(city.aqi);
-                    shapeRenderer.setColor(aqiColor);
-                } else {
-                    shapeRenderer.setColor(0.6f, 0.6f, 0.65f, 1f);
-                }
-            } else {
-                if (city.weatherLoaded) {
-                    Color tempColor = getTemperatureColor(city.temperature);
-                    shapeRenderer.setColor(tempColor);
-                } else {
-                    shapeRenderer.setColor(0.6f, 0.6f, 0.65f, 1f);
-                }
-            }
-            shapeRenderer.circle(pos.x, pos.y, isSelected ? 13 : 9);
-
-            // Border ring
-            shapeRenderer.setColor(1f, 1f, 1f, 0.9f);
-            shapeRenderer.circle(pos.x, pos.y, isSelected ? 11 : 7.5f);
-
-            // Inner core
-            if (airQualityMode && city.airQualityLoaded) {
-                Color aqiColor = getAQIColor(city.aqi);
-                shapeRenderer.setColor(aqiColor.r * 0.8f, aqiColor.g * 0.8f, aqiColor.b * 0.8f, 1f);
-            } else if (!airQualityMode && city.weatherLoaded) {
-                Color tempColor = getTemperatureColor(city.temperature);
-                shapeRenderer.setColor(tempColor.r * 0.8f, tempColor.g * 0.8f, tempColor.b * 0.8f, 1f);
-            } else {
-                shapeRenderer.setColor(0.5f, 0.5f, 0.55f, 1f);
-            }
-            shapeRenderer.circle(pos.x, pos.y, isSelected ? 6 : 4);
-        }
-        shapeRenderer.end();
+        mapRenderer.drawCityMarkers(cities, selectedCity, hoveredCity, editMode, markerPulse, airQualityMode);
 
         // Draw city labels
         batch.setProjectionMatrix(camera.combined);
-        batch.begin();
-        for (City city : cities) {
-            if (city == selectedCity || city == hoveredCity || camera.zoom < 0.7f) {
-                Vector2 pos = geoToScreen(city.lat, city.lon);
+        mapRenderer.drawCityLabels(batch, cities, selectedCity, hoveredCity, camera.zoom);
 
-                // Text shadow
-                smallFont.setColor(0, 0, 0, 0.7f);
-                smallFont.draw(batch, city.name, pos.x - 20 + 1, pos.y - 18 - 1);
-
-                // Text
-                smallFont.setColor(Color.WHITE);
-                smallFont.draw(batch, city.name, pos.x - 20, pos.y - 18);
-            }
-        }
-        batch.end();
-
-        // Draw weather/air quality panel if a city is selected
+        // Draw weather/air quality panel
         if (showWeatherPanel && selectedCity != null && !editMode) {
+            shapeRenderer.setProjectionMatrix(uiCamera.combined);
+            batch.setProjectionMatrix(uiCamera.combined);
+
             if (airQualityMode && selectedCity.airQualityLoaded) {
-                drawAirQualityPanel();
+                uiRenderer.drawAirQualityPanel(selectedCity, panelAnimationProgress, markerPulse, mapRenderer);
             } else if (!airQualityMode && selectedCity.weatherLoaded) {
-                drawWeatherPanel();
+                uiRenderer.drawWeatherPanel(selectedCity, panelAnimationProgress, markerPulse, mapRenderer);
             }
         }
 
-        // Draw control hints
-        drawControlHints();
+        // Draw UI elements
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
+        batch.setProjectionMatrix(uiCamera.combined);
 
-        // Draw edit mode indicator
+        uiRenderer.drawControlHints(editMode);
+
         if (editMode) {
-            drawEditModeIndicator();
+            uiRenderer.drawEditModeIndicator();
         }
 
-        // Draw location selection indicator
         if (awaitingLocationClick) {
-            drawLocationSelectionIndicator();
+            uiRenderer.drawLocationSelectionIndicator(markerPulse);
         }
 
-        // Draw and update Stage
         stage.act(delta);
         stage.draw();
-    }
-
-    private void drawLocationSelectionIndicator() {
-        batch.setProjectionMatrix(uiCamera.combined);
-        shapeRenderer.setProjectionMatrix(uiCamera.combined);
-
-        float barWidth = 350;
-        float barHeight = 50;
-        float barX = (Gdx.graphics.getWidth() - barWidth) / 2;
-        float barY = Gdx.graphics.getHeight() - barHeight - 70;
-
-        // Background with pulsing effect
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        float pulse = 0.8f + (float)Math.sin(markerPulse * 2) * 0.2f;
-        shapeRenderer.setColor(0.2f * pulse, 1f * pulse, 0.4f * pulse, 0.9f);
-        shapeRenderer.rect(barX, barY, barWidth, barHeight);
-        shapeRenderer.setColor(0.4f, 1f, 0.6f, 1f);
-        shapeRenderer.rect(barX, barY + barHeight - 3, barWidth, 3);
-        shapeRenderer.end();
-
-        // Text
-        batch.begin();
-        font.setColor(0.05f, 0.05f, 0.05f, 1f);
-        font.draw(batch, "Click on map to select location", barX + 45, barY + 32);
-        extraSmallFont.setColor(0.15f, 0.15f, 0.15f, 1f);
-        extraSmallFont.draw(batch, "ESC to cancel", barX + 125, barY + 14);
-        batch.end();
-    }
-
-    private void drawEditModeIndicator() {
-        batch.setProjectionMatrix(uiCamera.combined);
-        shapeRenderer.setProjectionMatrix(uiCamera.combined);
-
-        float barWidth = 200;
-        float barHeight = 50;
-        float barX = (Gdx.graphics.getWidth() - barWidth) / 2;
-        float barY = Gdx.graphics.getHeight() - barHeight - 10;
-
-        // Background
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(1f, 0.8f, 0.2f, 0.9f);
-        shapeRenderer.rect(barX, barY, barWidth, barHeight);
-        shapeRenderer.setColor(1f, 0.9f, 0.4f, 1f);
-        shapeRenderer.rect(barX, barY + barHeight - 3, barWidth, 3);
-        shapeRenderer.end();
-
-        // Text
-        batch.begin();
-        font.setColor(0.1f, 0.1f, 0.1f, 1f);
-        font.draw(batch, "EDIT MODE", barX + 50, barY + 32);
-        extraSmallFont.setColor(0.2f, 0.2f, 0.2f, 1f);
-        extraSmallFont.draw(batch, "A: Add  Del: Delete  Click: Edit", barX + 12, barY + 14);
-        batch.end();
-    }
-
-    private void drawWeatherPanel() {
-        // Switch to UI camera
-        shapeRenderer.setProjectionMatrix(uiCamera.combined);
-        batch.setProjectionMatrix(uiCamera.combined);
-
-        float panelX = Gdx.graphics.getWidth() - PANEL_WIDTH - PANEL_MARGIN;
-        float panelY = Gdx.graphics.getHeight() - PANEL_HEIGHT - PANEL_MARGIN;
-
-        // Apply slide-in animation
-        float animatedX = panelX + (1 - easeOutCubic(panelAnimationProgress)) * (PANEL_WIDTH + PANEL_MARGIN);
-
-        // Draw panel background with shadow
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        // Multiple shadow layers for depth
-        shapeRenderer.setColor(0, 0, 0, 0.15f);
-        shapeRenderer.rect(animatedX + 8, panelY - 8, PANEL_WIDTH, PANEL_HEIGHT);
-        shapeRenderer.setColor(0, 0, 0, 0.1f);
-        shapeRenderer.rect(animatedX + 4, panelY - 4, PANEL_WIDTH, PANEL_HEIGHT);
-
-        // Main panel background
-        shapeRenderer.setColor(0.11f, 0.13f, 0.16f, 0.98f);
-        shapeRenderer.rect(animatedX, panelY, PANEL_WIDTH, PANEL_HEIGHT);
-
-        // Header gradient background
-        Color headerColor = getTemperatureColor(selectedCity.temperature);
-
-        // Top gradient
-        for (int i = 0; i < 100; i++) {
-            float alpha = 0.85f - (i / 100f) * 0.45f;
-            shapeRenderer.setColor(headerColor.r, headerColor.g, headerColor.b, alpha);
-            shapeRenderer.rect(animatedX, panelY + PANEL_HEIGHT - 100 + i, PANEL_WIDTH, 1);
-        }
-
-        // Accent line at top
-        shapeRenderer.setColor(headerColor.r * 1.2f, headerColor.g * 1.2f, headerColor.b * 1.2f, 1f);
-        shapeRenderer.rect(animatedX, panelY + PANEL_HEIGHT - 3, PANEL_WIDTH, 3);
-
-        // Divider line
-        shapeRenderer.setColor(0.25f, 0.27f, 0.3f, 0.8f);
-        shapeRenderer.rect(animatedX + PANEL_PADDING, panelY + PANEL_HEIGHT - 105,
-            PANEL_WIDTH - PANEL_PADDING * 2, 2);
-
-        // Close button background
-        shapeRenderer.setColor(0.2f, 0.22f, 0.25f, 0.9f);
-        shapeRenderer.circle(animatedX + PANEL_WIDTH - 40, panelY + PANEL_HEIGHT - 40, 18);
-
-        shapeRenderer.end();
-
-        // Draw text content
-        batch.begin();
-
-        float textX = animatedX + PANEL_PADDING;
-        float textY = panelY + PANEL_HEIGHT - PANEL_PADDING - 5;
-
-        // City name with glow effect
-        titleFont.setColor(1f, 1f, 1f, 0.15f);
-        titleFont.draw(batch, selectedCity.name, textX + 2, textY - 12);
-        titleFont.setColor(Color.WHITE);
-        titleFont.draw(batch, selectedCity.name, textX, textY - 10);
-
-        // Close button X
-        font.setColor(0.9f, 0.9f, 0.9f, 1f);
-        font.draw(batch, "X", animatedX + PANEL_WIDTH - 47, textY - 10);
-
-        textY -= 90;
-
-        // Temperature - extra large display with shadow
-        largeFont.setColor(0, 0, 0, 0.3f);
-        String tempText = String.format("%.0f", selectedCity.temperature);
-        largeFont.draw(batch, tempText, textX + 3, textY - 3);
-        largeFont.setColor(Color.WHITE);
-        largeFont.draw(batch, tempText, textX, textY);
-
-        // Draw "°C" for Celsius next to temperature
-        titleFont.setColor(new Color(0.8f, 0.8f, 0.8f, 1f));
-        titleFont.draw(batch, "C", textX + 90, textY - 10);
-
-        // Description
-        smallFont.setColor(new Color(0.85f, 0.87f, 0.9f, 1f));
-        String capitalizedDesc = capitalizeFirst(selectedCity.description);
-        smallFont.draw(batch, capitalizedDesc, textX, textY - 50);
-
-        textY -= 105;
-
-        // Weather details in styled boxes
-        font.setColor(new Color(0.75f, 0.77f, 0.8f, 1f));
-
-        // End batch to draw icons with ShapeRenderer
-        batch.end();
-
-        shapeRenderer.setProjectionMatrix(uiCamera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        // Draw icons for each weather detail
-        float iconX = textX + 10;
-        float iconY = textY - 5;
-
-        drawHumidityIcon(iconX, iconY);
-        iconY -= 50;
-
-        drawWindIcon(iconX, iconY);
-        iconY -= 50;
-
-        drawPressureIcon(iconX, iconY);
-        iconY -= 50;
-
-        drawLocationIcon(iconX, iconY);
-
-        shapeRenderer.end();
-
-        // Resume batch for text
-        batch.begin();
-
-        // Draw info cards
-        drawInfoCard(batch, textX, textY, "Humidity", selectedCity.humidity + "%");
-        textY -= 50;
-
-        drawInfoCard(batch, textX, textY, "Wind Speed", String.format("%.1f m/s", selectedCity.windSpeed));
-        textY -= 50;
-
-        drawInfoCard(batch, textX, textY, "Pressure", selectedCity.pressure + " hPa");
-        textY -= 50;
-
-        drawInfoCard(batch, textX, textY, "Location",
-            String.format("%.2f N, %.2f E", selectedCity.lat, selectedCity.lon));
-
-        // Footer hint
-        textY = panelY + PANEL_PADDING + 10;
-        smallFont.setColor(new Color(0.5f, 0.52f, 0.55f, 1f));
-        smallFont.draw(batch, "Press ESC or click X to close", textX, textY);
-
-        batch.end();
-    }
-
-
-    private void drawInfoCard(SpriteBatch batch, float x, float y, String label, String value) {
-        // Card background (using shape renderer would be better, but keeping it simple)
-        font.setColor(new Color(0.6f, 0.62f, 0.65f, 1f));
-        font.draw(batch, label, x + 30, y);
-
-        titleFont.getData().setScale(1.4f);
-        titleFont.setColor(Color.WHITE);
-        titleFont.draw(batch, value, x + 160, y + 2);
-        titleFont.getData().setScale(2.2f);
-    }
-
-    private void drawHumidityIcon(float x, float y) {
-        shapeRenderer.setColor(0.4f, 0.65f, 0.95f, 1f);
-        // Droplet shape
-        shapeRenderer.circle(x, y - 2, 6);
-        shapeRenderer.triangle(x - 6, y - 2, x + 6, y - 2, x, y + 8);
-    }
-
-    private void drawWindIcon(float x, float y) {
-        shapeRenderer.setColor(0.6f, 0.75f, 0.9f, 1f);
-        // Wind lines
-        shapeRenderer.rectLine(x - 8, y + 4, x + 8, y + 4, 2);
-        shapeRenderer.rectLine(x - 6, y, x + 6, y, 2);
-        shapeRenderer.rectLine(x - 4, y - 4, x + 4, y - 4, 2);
-    }
-
-
-    private void drawPressureIcon(float x, float y) {
-        shapeRenderer.setColor(0.75f, 0.6f, 0.85f, 1f);
-        // Gauge/meter shape
-        shapeRenderer.circle(x, y, 7);
-        shapeRenderer.setColor(0.11f, 0.13f, 0.16f, 1f);
-        shapeRenderer.circle(x, y, 5);
-        shapeRenderer.setColor(0.75f, 0.6f, 0.85f, 1f);
-        shapeRenderer.rectLine(x, y, x + 4, y + 4, 2);
-    }
-
-    private void drawLocationIcon(float x, float y) {
-        shapeRenderer.setColor(0.95f, 0.4f, 0.4f, 1f);
-        // Map pin shape
-        shapeRenderer.circle(x, y + 4, 6);
-        shapeRenderer.setColor(0.11f, 0.13f, 0.16f, 1f);
-        shapeRenderer.circle(x, y + 4, 3);
-        shapeRenderer.setColor(0.95f, 0.4f, 0.4f, 1f);
-        shapeRenderer.triangle(x - 3, y + 1, x + 3, y + 1, x, y - 6);
-    }
-
-    private void drawAirQualityPanel() {
-        shapeRenderer.setProjectionMatrix(uiCamera.combined);
-        batch.setProjectionMatrix(uiCamera.combined);
-
-        float panelX = Gdx.graphics.getWidth() - PANEL_WIDTH - PANEL_MARGIN;
-        float panelY = Gdx.graphics.getHeight() - PANEL_HEIGHT - PANEL_MARGIN;
-
-        float animatedX = panelX + (1 - easeOutCubic(panelAnimationProgress)) * (PANEL_WIDTH + PANEL_MARGIN);
-
-        // Draw panel background with shadow
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        shapeRenderer.setColor(0, 0, 0, 0.15f);
-        shapeRenderer.rect(animatedX + 8, panelY - 8, PANEL_WIDTH, PANEL_HEIGHT);
-        shapeRenderer.setColor(0, 0, 0, 0.1f);
-        shapeRenderer.rect(animatedX + 4, panelY - 4, PANEL_WIDTH, PANEL_HEIGHT);
-
-        shapeRenderer.setColor(0.11f, 0.13f, 0.16f, 0.98f);
-        shapeRenderer.rect(animatedX, panelY, PANEL_WIDTH, PANEL_HEIGHT);
-
-        // Header gradient based on AQI
-        Color aqiColor = getAQIColor(selectedCity.aqi);
-
-        for (int i = 0; i < 100; i++) {
-            float alpha = 0.85f - (i / 100f) * 0.45f;
-            shapeRenderer.setColor(aqiColor.r, aqiColor.g, aqiColor.b, alpha);
-            shapeRenderer.rect(animatedX, panelY + PANEL_HEIGHT - 100 + i, PANEL_WIDTH, 1);
-        }
-
-        shapeRenderer.setColor(aqiColor.r * 1.2f, aqiColor.g * 1.2f, aqiColor.b * 1.2f, 1f);
-        shapeRenderer.rect(animatedX, panelY + PANEL_HEIGHT - 3, PANEL_WIDTH, 3);
-
-        shapeRenderer.setColor(0.25f, 0.27f, 0.3f, 0.8f);
-        shapeRenderer.rect(animatedX + PANEL_PADDING, panelY + PANEL_HEIGHT - 105,
-            PANEL_WIDTH - PANEL_PADDING * 2, 2);
-
-        shapeRenderer.setColor(0.2f, 0.22f, 0.25f, 0.9f);
-        shapeRenderer.circle(animatedX + PANEL_WIDTH - 40, panelY + PANEL_HEIGHT - 40, 18);
-
-        shapeRenderer.end();
-
-        // Draw text content
-        batch.begin();
-
-        float textX = animatedX + PANEL_PADDING;
-        float textY = panelY + PANEL_HEIGHT - PANEL_PADDING - 5;
-
-        // City name
-        titleFont.setColor(1f, 1f, 1f, 0.15f);
-        titleFont.draw(batch, selectedCity.name, textX + 2, textY - 12);
-        titleFont.setColor(Color.WHITE);
-        titleFont.draw(batch, selectedCity.name, textX, textY - 10);
-
-        // Close button
-        font.setColor(0.9f, 0.9f, 0.9f, 1f);
-        font.draw(batch, "X", animatedX + PANEL_WIDTH - 47, textY - 10);
-
-        textY -= 90;
-
-        // AQI - large display
-        largeFont.setColor(0, 0, 0, 0.3f);
-        String aqiText = String.valueOf(selectedCity.aqi);
-        largeFont.draw(batch, aqiText, textX + 3, textY - 3);
-        largeFont.setColor(Color.WHITE);
-        largeFont.draw(batch, aqiText, textX, textY);
-
-        // AQI label
-        titleFont.setColor(new Color(0.8f, 0.8f, 0.8f, 1f));
-        titleFont.draw(batch, "AQI", textX + 90, textY - 10);
-
-        // AQI description
-        smallFont.setColor(new Color(0.85f, 0.87f, 0.9f, 1f));
-        smallFont.draw(batch, getAQIDescription(selectedCity.aqi), textX, textY - 50);
-
-        textY -= 105;
-
-        batch.end();
-
-        // Draw icons
-        shapeRenderer.setProjectionMatrix(uiCamera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        float iconX = textX + 10;
-        float iconY = textY - 5;
-
-        drawPM25Icon(iconX, iconY);
-        iconY -= 50;
-
-//        drawPM10Icon(iconX, iconY);
-//        iconY -= 50;
-
-        drawO3Icon(iconX, iconY);
-        iconY -= 50;
-
-        drawNO2Icon(iconX, iconY);
-        iconY -= 50;
-//
-//        drawCOIcon(iconX, iconY);
-//        iconY -= 50;
-
-        drawLocationIcon(iconX, iconY);
-
-        shapeRenderer.end();
-
-        batch.begin();
-
-        // Draw info cards
-        drawInfoCard(batch, textX, textY, "PM2.5", String.format("%.1f μg/m³", selectedCity.pm2_5));
-        textY -= 50;
-
-//        drawInfoCard(batch, textX, textY, "PM10", String.format("%.1f μg/m³", selectedCity.pm10));
-//        textY -= 50;
-
-        drawInfoCard(batch, textX, textY, "Ozone (O₃)", String.format("%.1f μg/m³", selectedCity.o3));
-        textY -= 50;
-
-       drawInfoCard(batch, textX, textY, "NO₂", String.format("%.1f μg/m³", selectedCity.no2));
-        textY -= 50;
-//
-//        drawInfoCard(batch, textX, textY, "CO", String.format("%.1f μg/m³", selectedCity.co));
-//        textY -= 50;
-
-        drawInfoCard(batch, textX, textY, "Location",
-            String.format("%.2f N, %.2f E", selectedCity.lat, selectedCity.lon));
-
-        // Footer hint
-        textY = panelY + PANEL_PADDING + 10;
-        smallFont.setColor(new Color(0.5f, 0.52f, 0.55f, 1f));
-        smallFont.draw(batch, "Press ESC or click X to close", textX, textY);
-
-        batch.end();
-    }
-    private Color getAQIColor(int aqi) {
-        switch (aqi) {
-            case 1: return new Color(0.3f, 0.85f, 0.3f, 1f); // Good - Green
-            case 2: return new Color(0.8f, 0.85f, 0.3f, 1f); // Fair - Yellow
-            case 3: return new Color(1f, 0.7f, 0.2f, 1f); // Moderate - Orange
-            case 4: return new Color(1f, 0.4f, 0.3f, 1f); // Poor - Red
-            case 5: return new Color(0.8f, 0.2f, 0.5f, 1f); // Very Poor - Purple
-            default: return new Color(0.6f, 0.6f, 0.6f, 1f); // Unknown - Gray
-        }
-    }
-
-    private String getAQIDescription(int aqi) {
-        switch (aqi) {
-            case 1: return "Good";
-            case 2: return "Fair";
-            case 3: return "Moderate";
-            case 4: return "Poor";
-            case 5: return "Very Poor";
-            default: return "Unknown";
-        }
-    }
-
-    // Icon drawing methods for air quality pollutants:
-    private void drawPM25Icon(float x, float y) {
-        shapeRenderer.setColor(0.95f, 0.5f, 0.3f, 1f);
-        // Small particles
-        shapeRenderer.circle(x - 3, y + 3, 2.5f);
-        shapeRenderer.circle(x + 3, y + 1, 2f);
-        shapeRenderer.circle(x, y - 3, 2.5f);
-        shapeRenderer.circle(x + 4, y - 2, 1.5f);
-    }
-    private void drawPM10Icon(float x, float y) {
-        shapeRenderer.setColor(0.85f, 0.6f, 0.4f, 1f);
-        shapeRenderer.circle(x - 4, y + 3, 3.5f);
-        shapeRenderer.circle(x + 4, y, 3f);
-        shapeRenderer.circle(x, y - 4, 3.5f);
-    }
-
-    private void drawO3Icon(float x, float y) {
-        shapeRenderer.setColor(0.5f, 0.7f, 0.95f, 1f);
-        // Ozone molecule representation
-        shapeRenderer.circle(x, y + 4, 3f);
-        shapeRenderer.circle(x - 4, y - 2, 3f);
-        shapeRenderer.circle(x + 4, y - 2, 3f);
-    }
-
-    private void drawNO2Icon(float x, float y) {
-        shapeRenderer.setColor(0.9f, 0.6f, 0.3f, 1f);
-        // Chemical symbol representation
-        shapeRenderer.circle(x - 3, y, 3.5f);
-        shapeRenderer.circle(x + 3, y + 2, 2.5f);
-        shapeRenderer.circle(x + 3, y - 2, 2.5f);
-    }
-
-    private void drawCOIcon(float x, float y) {
-        shapeRenderer.setColor(0.7f, 0.5f, 0.8f, 1f);
-        // Carbon monoxide representation
-        shapeRenderer.circle(x - 3, y, 4f);
-        shapeRenderer.circle(x + 3, y, 3f);
-    }
-    private void drawControlHints() {
-        batch.setProjectionMatrix(uiCamera.combined);
-        batch.begin();
-
-        smallFont.setColor(new Color(1f, 1f, 1f, 0.7f));
-        String hints = editMode ?
-            "Arrow Keys: Pan  |  +/-: Zoom  |  A: Click Map to Add  |  Click City: Edit  |  Del: Delete  |  E: Exit Edit" :
-            "Arrow Keys: Pan  |  +/-: Zoom  |  Click City: Weather Info  |  E: Edit Mode";
-        float textWidth = 700; // Approximate
-        smallFont.draw(batch, hints,
-            (Gdx.graphics.getWidth() - textWidth) / 2,
-            30);
-
-        batch.end();
-    }
-
-    private Color getTemperatureColor(double temp) {
-        if (temp < 0) {
-            return new Color(0.3f, 0.6f, 1f, 1f); // Cool blue
-        } else if (temp < 10) {
-            return new Color(0.4f, 0.75f, 0.95f, 1f); // Light blue
-        } else if (temp < 20) {
-            return new Color(0.4f, 0.85f, 0.4f, 1f); // Green
-        } else if (temp < 28) {
-            return new Color(1f, 0.85f, 0.2f, 1f); // Yellow-orange
-        } else {
-            return new Color(1f, 0.4f, 0.3f, 1f); // Hot red
-        }
-    }
-
-    private String capitalizeFirst(String text) {
-        if (text == null || text.isEmpty()) {
-            return text;
-        }
-        return text.substring(0, 1).toUpperCase() + text.substring(1);
-    }
-
-    private float easeOutCubic(float t) {
-        return 1 - (float)Math.pow(1 - t, 3);
     }
 
     @Override
@@ -1650,36 +1005,22 @@ public class SloveniaMap extends ApplicationAdapter {
 
     @Override
     public void dispose() {
-        if (batch != null) {
-            batch.dispose();
-        }
-        if (mapTexture != null) {
-            mapTexture.dispose();
-        }
-        if (shapeRenderer != null) {
-            shapeRenderer.dispose();
-        }
-        if (font != null) {
-            font.dispose();
-        }
-        if (titleFont != null) {
-            titleFont.dispose();
-        }
-        if (smallFont != null) {
-            smallFont.dispose();
-        }
-        if (largeFont != null) {
-            largeFont.dispose();
-        }
-        if (stage != null) {
-            stage.dispose();
-        }
-        if (skin != null) {
-            skin.dispose();
-        }
+        if (batch != null) batch.dispose();
+        if (mapTexture != null) mapTexture.dispose();
+        if (shapeRenderer != null) shapeRenderer.dispose();
+        if (font != null) font.dispose();
+        if (titleFont != null) titleFont.dispose();
+        if (smallFont != null) smallFont.dispose();
+        if (largeFont != null) largeFont.dispose();
+        if (extraSmallFont != null) extraSmallFont.dispose();
+        if (stage != null) stage.dispose();
+        if (skin != null) skin.dispose();
     }
 
     public boolean scrolled(float amountX, float amountY) {
+        // Cancel camera animation if user manually zooms
+        isAnimatingCamera = false;
+
         camera.zoom += amountY * 0.1f;
         camera.zoom = MathUtils.clamp(camera.zoom, MIN_ZOOM, MAX_ZOOM);
         return true;

@@ -93,6 +93,10 @@ public class SloveniaMap extends ApplicationAdapter {
     private static final String GEOAPIFY_API_KEY = "930e7c22c63b486eac329474adc56afd";
     private static final String CITIES_FILE = "cities.json";
 
+    // Cache settings
+    private static final String CACHE_DIR = "cache/";
+    private static final String MAP_CACHE_FILE = CACHE_DIR + "slovenia_map.png";
+
     // Manager and Renderer instances
     private WeatherDataManager weatherDataManager;
     private AirQualityDataManager airQualityDataManager;
@@ -165,15 +169,8 @@ public class SloveniaMap extends ApplicationAdapter {
             saveCitiesToFile();
         }
 
-        // Load map texture
-        String mapUrl = buildGeoapifyUrl(MAP_WIDTH, MAP_HEIGHT);
-        try {
-            mapTexture = downloadMapTexture(mapUrl);
-            System.out.println("Map loaded successfully!");
-        } catch (Exception e) {
-            System.err.println("Failed to load map: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // Load map texture with caching
+        mapTexture = loadMapWithCache();
 
         createModeToggleButton();
 
@@ -230,6 +227,31 @@ public class SloveniaMap extends ApplicationAdapter {
         }
     }
 
+    private Texture loadMapWithCache() {
+        try {
+            // Try to load from cache first
+            FileHandle cachedMap = Gdx.files.local(MAP_CACHE_FILE);
+            if (cachedMap.exists()) {
+                System.out.println("Loading map from cache...");
+                Texture texture = new Texture(cachedMap);
+                System.out.println("Map loaded from cache successfully!");
+                return texture;
+            }
+
+            // If not cached, download it
+            System.out.println("Map not cached, downloading...");
+            String mapUrl = buildGeoapifyUrl(MAP_WIDTH, MAP_HEIGHT);
+            Texture texture = downloadAndCacheMapTexture(mapUrl);
+            System.out.println("Map downloaded and cached successfully!");
+            return texture;
+
+        } catch (Exception e) {
+            System.err.println("Failed to load map: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     private String buildGeoapifyUrl(int width, int height) {
         String area = String.format("rect:%f,%f,%f,%f", MIN_LON, MIN_LAT, MAX_LON, MAX_LAT);
         String style = "osm-bright";
@@ -239,7 +261,14 @@ public class SloveniaMap extends ApplicationAdapter {
         );
     }
 
-    private Texture downloadMapTexture(String urlString) throws Exception {
+    private Texture downloadAndCacheMapTexture(String urlString) throws Exception {
+        // Ensure cache directory exists
+        FileHandle cacheDir = Gdx.files.local(CACHE_DIR);
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs();
+            System.out.println("Created cache directory");
+        }
+
         URL url = new URL(urlString);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
@@ -261,13 +290,38 @@ public class SloveniaMap extends ApplicationAdapter {
             byte[] imageData = buffer.toByteArray();
             inputStream.close();
 
+            // Create texture from data
             Pixmap pixmap = new Pixmap(imageData, 0, imageData.length);
             Texture texture = new Texture(pixmap);
-            pixmap.dispose();
 
+            // Save to cache
+            try {
+                FileHandle cachedMap = Gdx.files.local(MAP_CACHE_FILE);
+                cachedMap.writeBytes(imageData, false);
+                System.out.println("Map cached to: " + MAP_CACHE_FILE);
+            } catch (Exception e) {
+                System.err.println("Failed to cache map: " + e.getMessage());
+            }
+
+            pixmap.dispose();
             return texture;
         } else {
             throw new Exception("HTTP error code: " + responseCode);
+        }
+    }
+
+    /**
+     * Clear the map cache and force re-download on next launch
+     */
+    private void clearMapCache() {
+        try {
+            FileHandle cachedMap = Gdx.files.local(MAP_CACHE_FILE);
+            if (cachedMap.exists()) {
+                cachedMap.delete();
+                System.out.println("Map cache cleared");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to clear map cache: " + e.getMessage());
         }
     }
 
@@ -371,6 +425,13 @@ public class SloveniaMap extends ApplicationAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
             particleEffectsManager.setEnabled(!particleEffectsManager.isEnabled());
             System.out.println("Particle effects: " + (particleEffectsManager.isEnabled() ? "ON" : "OFF"));
+        }
+
+        // Clear cache with 'C' key (for debugging)
+        if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && Gdx.input.isKeyJustPressed(Input.Keys.C)) {
+            clearMapCache();
+            mapRenderer.clearIconCache();
+            showSuccessDialog("Cache cleared! Restart the app to re-download.");
         }
 
         // Add new city with 'A' key in edit mode
@@ -1005,81 +1066,81 @@ public class SloveniaMap extends ApplicationAdapter {
     }
 
     @Override
-        public void render() {
-            handleInput();
+    public void render() {
+        handleInput();
 
-            float delta = Gdx.graphics.getDeltaTime();
-            markerPulse += delta * 2f;
-            if (showWeatherPanel && panelAnimationProgress < 1f) {
-                panelAnimationProgress = Math.min(1f, panelAnimationProgress + delta * 4f);
-            }
+        float delta = Gdx.graphics.getDeltaTime();
+        markerPulse += delta * 2f;
+        if (showWeatherPanel && panelAnimationProgress < 1f) {
+            panelAnimationProgress = Math.min(1f, panelAnimationProgress + delta * 4f);
+        }
 
-            // Update camera animation
-            updateCameraAnimation(delta);
+        // Update camera animation
+        updateCameraAnimation(delta);
 
-            // Update particle effects
-            particleEffectsManager.update(delta, cities, airQualityMode);
+        // Update particle effects
+        particleEffectsManager.update(delta, cities, airQualityMode);
 
-            ScreenUtils.clear(0.12f, 0.15f, 0.2f, 1f);
+        ScreenUtils.clear(0.12f, 0.15f, 0.2f, 1f);
 
-            // Draw map
-            batch.setProjectionMatrix(camera.combined);
-            batch.begin();
-            if (mapTexture != null) {
-                batch.setColor(0.95f, 0.95f, 0.95f, 1f);
-                batch.draw(mapTexture, 0, 0, MAP_WIDTH, MAP_HEIGHT);
-                batch.setColor(Color.WHITE);
-            }
-            batch.end();
+        // Draw map
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        if (mapTexture != null) {
+            batch.setColor(0.95f, 0.95f, 0.95f, 1f);
+            batch.draw(mapTexture, 0, 0, MAP_WIDTH, MAP_HEIGHT);
+            batch.setColor(Color.WHITE);
+        }
+        batch.end();
 
-            // Draw pending location marker
-            if (awaitingLocationClick && pendingLocation != null) {
-                shapeRenderer.setProjectionMatrix(camera.combined);
-                mapRenderer.drawPendingLocationMarker(pendingLocation, markerPulse);
-            }
-
-            // Draw particle effects BEFORE city markers so they appear behind
+        // Draw pending location marker
+        if (awaitingLocationClick && pendingLocation != null) {
             shapeRenderer.setProjectionMatrix(camera.combined);
-            particleEffectsManager.render(shapeRenderer);
+            mapRenderer.drawPendingLocationMarker(pendingLocation, markerPulse);
+        }
 
-            // Draw city icons (CHANGED - was drawCityMarkers)
-            batch.setProjectionMatrix(camera.combined);
-            shapeRenderer.setProjectionMatrix(camera.combined);
-            mapRenderer.drawCityIcons(batch, cities, selectedCity, hoveredCity, editMode, markerPulse, airQualityMode);
+        // Draw particle effects BEFORE city markers so they appear behind
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        particleEffectsManager.render(shapeRenderer);
 
-            // Draw city labels
-            batch.setProjectionMatrix(camera.combined);
-            mapRenderer.drawCityLabels(batch, cities, selectedCity, hoveredCity, camera.zoom);
+        // Draw city icons (CHANGED - was drawCityMarkers)
+        batch.setProjectionMatrix(camera.combined);
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        mapRenderer.drawCityIcons(batch, cities, selectedCity, hoveredCity, editMode, markerPulse, airQualityMode);
 
-            // Draw weather/air quality panel
-            if (showWeatherPanel && selectedCity != null && !editMode) {
-                shapeRenderer.setProjectionMatrix(uiCamera.combined);
-                batch.setProjectionMatrix(uiCamera.combined);
+        // Draw city labels
+        batch.setProjectionMatrix(camera.combined);
+        mapRenderer.drawCityLabels(batch, cities, selectedCity, hoveredCity, camera.zoom);
 
-                if (airQualityMode && selectedCity.airQualityLoaded) {
-                    uiRenderer.drawAirQualityPanel(selectedCity, panelAnimationProgress, markerPulse, mapRenderer);
-                } else if (!airQualityMode && selectedCity.weatherLoaded) {
-                    uiRenderer.drawWeatherPanel(selectedCity, panelAnimationProgress, markerPulse, mapRenderer);
-                }
-            }
-
-            // Draw UI elements
+        // Draw weather/air quality panel
+        if (showWeatherPanel && selectedCity != null && !editMode) {
             shapeRenderer.setProjectionMatrix(uiCamera.combined);
             batch.setProjectionMatrix(uiCamera.combined);
 
-            uiRenderer.drawControlHints(editMode, particleEffectsManager.isEnabled());
-
-            if (editMode) {
-                uiRenderer.drawEditModeIndicator();
+            if (airQualityMode && selectedCity.airQualityLoaded) {
+                uiRenderer.drawAirQualityPanel(selectedCity, panelAnimationProgress, markerPulse, mapRenderer);
+            } else if (!airQualityMode && selectedCity.weatherLoaded) {
+                uiRenderer.drawWeatherPanel(selectedCity, panelAnimationProgress, markerPulse, mapRenderer);
             }
-
-            if (awaitingLocationClick) {
-                uiRenderer.drawLocationSelectionIndicator(markerPulse);
-            }
-
-            stage.act(delta);
-            stage.draw();
         }
+
+        // Draw UI elements
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
+        batch.setProjectionMatrix(uiCamera.combined);
+
+        uiRenderer.drawControlHints(editMode, particleEffectsManager.isEnabled());
+
+        if (editMode) {
+            uiRenderer.drawEditModeIndicator();
+        }
+
+        if (awaitingLocationClick) {
+            uiRenderer.drawLocationSelectionIndicator(markerPulse);
+        }
+
+        stage.act(delta);
+        stage.draw();
+    }
 
     @Override
     public void resize(int width, int height) {
@@ -1099,6 +1160,7 @@ public class SloveniaMap extends ApplicationAdapter {
         if (extraSmallFont != null) extraSmallFont.dispose();
         if (stage != null) stage.dispose();
         if (skin != null) skin.dispose();
+        if (mapRenderer != null) mapRenderer.dispose();
     }
 
     public boolean scrolled(float amountX, float amountY) {

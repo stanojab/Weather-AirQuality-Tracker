@@ -4,19 +4,19 @@
 	name: Ljubljana
 	lat: 46.0569
 	lon: 14.5058
-	temperature: -1.85
-	humidity: 80
+	temperature: -1.65
+	humidity: 78
 	pressure: 1032
 	windSpeed: 3.09
 	description: overcast clouds
 	icon: 04n
 	weatherLoaded: true
 	aqi: 2
-	co: 203.26
-	no2: 2.98
-	o3: 69.2
-	pm2_5: 5.76
-	pm10: 7.07
+	co: 205.66
+	no2: 2.61
+	o3: 69.97
+	pm2_5: 6.51
+	pm10: 7.83
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -25,19 +25,19 @@
 	name: Maribor
 	lat: 46.5547
 	lon: 15.6459
-	temperature: -3.55
-	humidity: 87
-	pressure: 1035
-	windSpeed: 2.06
+	temperature: -3.53
+	humidity: 90
+	pressure: 1034
+	windSpeed: 1.03
 	description: overcast clouds
 	icon: 04n
 	weatherLoaded: true
 	aqi: 2
-	co: 237.87
-	no2: 4.3
-	o3: 54.91
-	pm2_5: 15.41
-	pm10: 18.28
+	co: 242.09
+	no2: 3.84
+	o3: 54.9
+	pm2_5: 16.68
+	pm10: 19.25
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -46,40 +46,40 @@
 	name: Celje
 	lat: 46.2395
 	lon: 15.2675
-	temperature: -1.37
+	temperature: -1.4
 	humidity: 85
 	pressure: 1033
-	windSpeed: 1.25
+	windSpeed: 1.3
 	description: clear sky
-	icon: 01n
+	icon: 01d
 	weatherLoaded: true
 	aqi: 2
-	co: 219.71
-	no2: 3.75
-	o3: 61.48
-	pm2_5: 10.97
-	pm10: 12.94
+	co: 221.54
+	no2: 3.51
+	o3: 61.84
+	pm2_5: 11.56
+	pm10: 13.51
 	airQualityLoaded: true
-	isStatic: false
+	isStatic: true
 }
 {
 	class: si.um.feri.bozinov.City
 	name: Kranj
 	lat: 46.2384
 	lon: 14.3555
-	temperature: -2.14
-	humidity: 83
+	temperature: -2.33
+	humidity: 82
 	pressure: 1032
 	windSpeed: 3.09
 	description: overcast clouds
 	icon: 04n
 	weatherLoaded: true
 	aqi: 2
-	co: 203.25
-	no2: 3.37
-	o3: 72.07
-	pm2_5: 5.67
-	pm10: 6.9
+	co: 204.95
+	no2: 3.02
+	o3: 72.79
+	pm2_5: 6.21
+	pm10: 7.43
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -88,40 +88,40 @@
 	name: Koper
 	lat: 45.5469
 	lon: 13.7301
-	temperature: 0.95
-	humidity: 69
-	pressure: 1028
-	windSpeed: 10.29
+	temperature: 2
+	humidity: 60
+	pressure: 1027
+	windSpeed: 8.8
 	description: clear sky
-	icon: 01n
+	icon: 01d
 	weatherLoaded: true
 	aqi: 2
-	co: 183.02
-	no2: 2.84
-	o3: 72.58
-	pm2_5: 3.77
-	pm10: 6.01
+	co: 180.59
+	no2: 2.62
+	o3: 73.41
+	pm2_5: 3.67
+	pm10: 5.75
 	airQualityLoaded: true
-	isStatic: false
+	isStatic: true
 }
 {
 	class: si.um.feri.bozinov.City
 	name: Novo Mesto
 	lat: 45.8039
 	lon: 15.1696
-	temperature: -2.14
-	humidity: 88
+	temperature: -2.11
+	humidity: 90
 	pressure: 1033
-	windSpeed: 1.4
-	description: broken clouds
-	icon: 04n
+	windSpeed: 1.1
+	description: scattered clouds
+	icon: 03n
 	weatherLoaded: true
 	aqi: 2
-	co: 196.18
-	no2: 2.7
-	o3: 70.09
-	pm2_5: 6
-	pm10: 7.4
+	co: 196.65
+	no2: 2.33
+	o3: 72
+	pm2_5: 6.55
+	pm10: 7.91
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -130,19 +130,19 @@
 	name: Velenje
 	lat: 46.3809
 	lon: 15.0985
-	temperature: -1.04
-	humidity: 85
+	temperature: -2.43
+	humidity: 83
 	pressure: 1033
-	windSpeed: 1.21
-	description: scattered clouds
-	icon: 03n
+	windSpeed: 1.17
+	description: few clouds
+	icon: 02n
 	weatherLoaded: true
 	aqi: 2
-	co: 211.84
-	no2: 3.55
-	o3: 63.06
-	pm2_5: 8.9
-	pm10: 10.6
+	co: 212.55
+	no2: 3.1
+	o3: 64.46
+	pm2_5: 9.82
+	pm10: 11.52
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -151,40 +151,40 @@
 	name: Nova Gorica
 	lat: 45.9556
 	lon: 13.6475
-	temperature: 0.8
-	humidity: 65
+	temperature: 0.3
+	humidity: 67
 	pressure: 1028
-	windSpeed: 4.41
+	windSpeed: 4.5
 	description: clear sky
-	icon: 01n
+	icon: 01d
 	weatherLoaded: true
 	aqi: 2
-	co: 187.83
-	no2: 3.06
-	o3: 74.24
-	pm2_5: 3.45
-	pm10: 4.97
+	co: 186.84
+	no2: 2.89
+	o3: 74.76
+	pm2_5: 3.42
+	pm10: 4.84
 	airQualityLoaded: true
-	isStatic: false
+	isStatic: true
 }
 {
 	class: si.um.feri.bozinov.City
 	name: Ptuj
 	lat: 46.4205
 	lon: 15.8697
-	temperature: -2.94
-	humidity: 86
-	pressure: 1035
-	windSpeed: 2.06
+	temperature: -3.07
+	humidity: 91
+	pressure: 1034
+	windSpeed: 1.03
 	description: overcast clouds
 	icon: 04n
 	weatherLoaded: true
 	aqi: 2
-	co: 243.47
-	no2: 4.93
-	o3: 52.9
-	pm2_5: 16.55
-	pm10: 19.26
+	co: 246.79
+	no2: 4.46
+	o3: 53
+	pm2_5: 17.59
+	pm10: 20.06
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -214,19 +214,19 @@
 	name: Slovenj Gradec
 	lat: 46.5101
 	lon: 15.0798
-	temperature: -3.53
+	temperature: -3.69
 	humidity: 90
-	pressure: 1034
-	windSpeed: 1.28
-	description: broken clouds
-	icon: 04n
+	pressure: 1033
+	windSpeed: 1.22
+	description: scattered clouds
+	icon: 03n
 	weatherLoaded: true
 	aqi: 2
-	co: 220.18
-	no2: 4.2
-	o3: 57.32
-	pm2_5: 10.69
-	pm10: 12.57
+	co: 220.97
+	no2: 3.69
+	o3: 58.4
+	pm2_5: 11.85
+	pm10: 13.75
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -235,40 +235,40 @@
 	name: Kamnik
 	lat: 46.2026
 	lon: 14.9414
-	temperature: -1.84
-	humidity: 83
+	temperature: -1.6
+	humidity: 84
 	pressure: 1033
-	windSpeed: 0.89
+	windSpeed: 1.3
 	description: clear sky
-	icon: 01n
+	icon: 01d
 	weatherLoaded: true
 	aqi: 2
-	co: 210.89
-	no2: 3.53
-	o3: 65.36
-	pm2_5: 8.15
-	pm10: 9.72
+	co: 211.84
+	no2: 3.3
+	o3: 65.84
+	pm2_5: 8.62
+	pm10: 10.19
 	airQualityLoaded: true
-	isStatic: false
+	isStatic: true
 }
 {
 	class: si.um.feri.bozinov.City
 	name: Jesenice
 	lat: 46.4297
 	lon: 14.0531
-	temperature: -4.75
-	humidity: 87
+	temperature: -4.72
+	humidity: 84
 	pressure: 1032
 	windSpeed: 1.29
 	description: overcast clouds
 	icon: 04n
 	weatherLoaded: true
 	aqi: 2
-	co: 199.59
-	no2: 3.52
-	o3: 75.79
-	pm2_5: 5.43
-	pm10: 6.59
+	co: 201.72
+	no2: 3.22
+	o3: 76.28
+	pm2_5: 5.79
+	pm10: 6.93
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -277,21 +277,21 @@
 	name: Izola
 	lat: 45.5368
 	lon: 13.6614
-	temperature: 0.97
-	humidity: 69
+	temperature: 2
+	humidity: 60
 	pressure: 1027
-	windSpeed: 10.29
+	windSpeed: 8.8
 	description: clear sky
-	icon: 01n
+	icon: 01d
 	weatherLoaded: true
 	aqi: 2
-	co: 183.02
-	no2: 2.84
-	o3: 72.58
-	pm2_5: 3.77
-	pm10: 6.01
+	co: 180.59
+	no2: 2.62
+	o3: 73.41
+	pm2_5: 3.67
+	pm10: 5.75
 	airQualityLoaded: true
-	isStatic: false
+	isStatic: true
 }
 {
 	class: si.um.feri.bozinov.City
@@ -299,18 +299,18 @@
 	lat: 45.9589
 	lon: 15.4919
 	temperature: -0.81
-	humidity: 80
-	pressure: 1034
+	humidity: 79
+	pressure: 1033
 	windSpeed: 1.03
 	description: overcast clouds
 	icon: 04n
 	weatherLoaded: true
 	aqi: 2
-	co: 216.9
-	no2: 3.55
-	o3: 64
-	pm2_5: 10.83
-	pm10: 12.68
+	co: 219.31
+	no2: 3.12
+	o3: 65.1
+	pm2_5: 11.56
+	pm10: 13.32
 	airQualityLoaded: true
 	isStatic: false
 }
@@ -319,11 +319,11 @@
 	name: TestClass
 	lat: 46.4119
 	lon: 14.9456
-	temperature: -4.47
+	temperature: 25
 	humidity: 87
 	pressure: 1033
-	windSpeed: 1.19
-	description: broken clouds
+	windSpeed: 1.2
+	description: sunn
 	icon: 01d
 	weatherLoaded: true
 	aqi: 3
@@ -403,21 +403,21 @@
 	name: test
 	lat: 46.024
 	lon: 15.0459
-	temperature: -3.35
+	temperature: -3.3
 	humidity: 80
 	pressure: 1033
-	windSpeed: 1.45
+	windSpeed: 1.34
 	description: clear sky
-	icon: 01n
+	icon: 01d
 	weatherLoaded: true
-	aqi: 2
-	co: 202.83
-	no2: 2.87
-	o3: 69
-	pm2_5: 7.12
-	pm10: 8.63
+	aqi: 5
+	co: 204.01
+	no2: 2.65
+	o3: 69.75
+	pm2_5: 7.53
+	pm10: 9.05
 	airQualityLoaded: true
-	isStatic: false
+	isStatic: true
 }
 {
 	class: si.um.feri.bozinov.City
@@ -429,7 +429,7 @@
 	pressure: 1033
 	windSpeed: 1.5
 	description: scattered clouds
-	icon: 01d
+	icon: 04d
 	weatherLoaded: true
 	aqi: 1
 	co: 210.43
@@ -437,27 +437,6 @@
 	o3: 67.41
 	pm2_5: 7.14
 	pm10: 8.61
-	airQualityLoaded: true
-	isStatic: true
-}
-{
-	class: si.um.feri.bozinov.City
-	name: zagade
-	lat: 46.2984
-	lon: 14.5346
-	temperature: -10.91
-	humidity: 80
-	pressure: 1032
-	windSpeed: 3.09
-	description: overcast clouds
-	icon: 01d
-	weatherLoaded: true
-	aqi: 5
-	co: 208.87
-	no2: 3.48
-	o3: 70.04
-	pm2_5: 6.64
-	pm10: 7.94
 	airQualityLoaded: true
 	isStatic: true
 }

@@ -1,6 +1,7 @@
 package si.um.feri.bozinov;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
@@ -35,6 +36,10 @@ public class MapRenderer {
     private Map<Integer, Texture> aqiIcons;
     private static final String ICON_BASE_URL = "https://openweathermap.org/img/wn/";
 
+    // File cache directory
+    private static final String CACHE_DIR = "cache/";
+    private static final String ICON_CACHE_DIR = CACHE_DIR + "icons/";
+
     public MapRenderer(ShapeRenderer shapeRenderer, BitmapFont smallFont) {
         this.shapeRenderer = shapeRenderer;
         this.smallFont = smallFont;
@@ -42,7 +47,60 @@ public class MapRenderer {
         this.pendingIcons = new ConcurrentHashMap<>();
         this.aqiIcons = new HashMap<>();
 
+        // Ensure cache directories exist
+        ensureCacheDirectories();
+
         createDefaultIcons();
+
+        // Load cached icons on startup
+        loadCachedIcons();
+    }
+
+    private void ensureCacheDirectories() {
+        try {
+            FileHandle cacheDir = Gdx.files.local(CACHE_DIR);
+            if (!cacheDir.exists()) {
+                cacheDir.mkdirs();
+                System.out.println("Created cache directory: " + CACHE_DIR);
+            }
+
+            FileHandle iconCacheDir = Gdx.files.local(ICON_CACHE_DIR);
+            if (!iconCacheDir.exists()) {
+                iconCacheDir.mkdirs();
+                System.out.println("Created icon cache directory: " + ICON_CACHE_DIR);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to create cache directories: " + e.getMessage());
+        }
+    }
+
+    private void loadCachedIcons() {
+        try {
+            FileHandle iconDir = Gdx.files.local(ICON_CACHE_DIR);
+            if (iconDir.exists() && iconDir.isDirectory()) {
+                FileHandle[] cachedFiles = iconDir.list(".png");
+                for (FileHandle file : cachedFiles) {
+                    String iconCode = file.nameWithoutExtension();
+                    try {
+                        byte[] imageData = file.readBytes();
+                        Pixmap pixmap = new Pixmap(imageData, 0, imageData.length);
+                        Texture texture = new Texture(pixmap);
+                        texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+                        pixmap.dispose();
+
+                        iconCache.put(iconCode, texture);
+                        System.out.println("Loaded cached icon: " + iconCode);
+                    } catch (Exception e) {
+                        System.err.println("Failed to load cached icon " + iconCode + ": " + e.getMessage());
+                        // Delete corrupted cache file
+                        file.delete();
+                    }
+                }
+                System.out.println("Loaded " + iconCache.size() + " cached weather icons");
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading cached icons: " + e.getMessage());
+        }
     }
 
     private void createDefaultIcons() {
@@ -75,7 +133,7 @@ public class MapRenderer {
     }
 
     private Texture createAQIIcon(int aqi) {
-        int size = 64;
+        int size = 60;
         Pixmap pixmap = new Pixmap(size, size, Pixmap.Format.RGBA8888);
 
         Color baseColor = getAQIColor(aqi);
@@ -147,6 +205,13 @@ public class MapRenderer {
 
     private byte[] downloadWeatherIconData(String iconCode) {
         try {
+            // Check if icon is already cached on disk
+            FileHandle cachedFile = Gdx.files.local(ICON_CACHE_DIR + iconCode + ".png");
+            if (cachedFile.exists()) {
+                System.out.println("Using cached icon file: " + iconCode);
+                return cachedFile.readBytes();
+            }
+
             String urlString = ICON_BASE_URL + iconCode + "@2x.png";
             URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -169,7 +234,14 @@ public class MapRenderer {
                 byte[] imageData = buffer.toByteArray();
                 inputStream.close();
 
-                System.out.println("Downloaded weather icon data: " + iconCode);
+                // Save to cache
+                try {
+                    cachedFile.writeBytes(imageData, false);
+                    System.out.println("Downloaded and cached weather icon: " + iconCode);
+                } catch (Exception e) {
+                    System.err.println("Failed to cache icon " + iconCode + ": " + e.getMessage());
+                }
+
                 return imageData;
             } else {
                 System.err.println("Failed to download icon " + iconCode + ": HTTP " + responseCode);
@@ -200,7 +272,7 @@ public class MapRenderer {
                     }
                 }
             }
-            System.out.println("Finished downloading weather icons");
+            System.out.println("Finished preloading weather icons");
         }).start();
     }
 
@@ -295,7 +367,7 @@ public class MapRenderer {
             }
 
             // Calculate icon size
-            float baseSize = 56f;
+            float baseSize = 64f;
             float iconSize = baseSize;
 
             if (isSelected) {
@@ -321,11 +393,10 @@ public class MapRenderer {
                 if (airQualityMode && city.airQualityLoaded) {
                     Color aqiColor = getAQIColor(city.aqi);
                     batch.setColor(aqiColor.r, aqiColor.g, aqiColor.b, 0.3f);
-                    float colorGlowSize = iconSize * 1f;
                     batch.draw(icon,
-                        pos.x - colorGlowSize / 2f,
-                        pos.y - colorGlowSize / 2f,
-                        colorGlowSize, colorGlowSize);
+                        pos.x - iconSize / 2f,
+                        pos.y - iconSize / 2f,
+                        iconSize, iconSize);
                 }
 
                 batch.setColor(Color.WHITE);
@@ -447,6 +518,22 @@ public class MapRenderer {
             case 4: return new Color(1f, 0.4f, 0.3f, 1f);      // Poor - Red
             case 5: return new Color(0.8f, 0.2f, 0.5f, 1f);    // Very Poor - Purple
             default: return new Color(0.6f, 0.6f, 0.6f, 1f);   // Unknown - Gray
+        }
+    }
+
+    /**
+     * Clear the icon cache (useful for debugging or forcing refresh)
+     */
+    public void clearIconCache() {
+        try {
+            FileHandle iconDir = Gdx.files.local(ICON_CACHE_DIR);
+            if (iconDir.exists() && iconDir.isDirectory()) {
+                iconDir.deleteDirectory();
+                iconDir.mkdirs();
+                System.out.println("Cleared icon cache");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to clear icon cache: " + e.getMessage());
         }
     }
 

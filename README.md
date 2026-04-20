@@ -47,7 +47,7 @@ Aplikacija prikazuje interaktivni zemljevid Slovenije z realnimi vremenskimi pod
 
 
 
-## ⚙️ Namestitev in zagon
+## ️ Namestitev in zagon
 
 ### Konfiguracija API ključev
 

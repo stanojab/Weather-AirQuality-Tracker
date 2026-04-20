@@ -10,11 +10,9 @@ public class AirQualityDataManager {
     private static final String OPENWEATHER_API_KEY = loadApiKey();
 
     private static String loadApiKey() {
-        // Try system property first (Gradle run)
+        //  system property first (Gradle run)
         String key = System.getProperty("OPENWEATHER_API_KEY");
         if (key != null && !key.isEmpty()) return key;
-
-
         try {
             java.io.File file = new java.io.File("../local.properties");
             if (!file.exists()) file = new java.io.File("local.properties");

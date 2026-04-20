@@ -90,7 +90,21 @@ public class SloveniaMap extends ApplicationAdapter {
     private boolean airQualityMode = false;
     private TextButton modeToggleButton;
 
-    private static final String GEOAPIFY_API_KEY = "930e7c22c63b486eac329474adc56afd";
+    private static final String GEOAPIFY_API_KEY = loadGeoapifyApiKey();
+    private static String loadGeoapifyApiKey() {
+        String key = System.getProperty("GEOAPIFY_API_KEY");
+        if (key != null && !key.isEmpty()) return key;
+        try {
+            java.io.File file = new java.io.File("../local.properties");
+            if (!file.exists()) file = new java.io.File("local.properties");
+            java.util.Properties props = new java.util.Properties();
+            props.load(new java.io.FileInputStream(file));
+            return props.getProperty("GEOAPIFY_API_KEY", "");
+        } catch (Exception e) {
+            System.err.println("Could not load Geoapify API key: " + e.getMessage());
+            return "";
+        }
+    }
     private static final String CITIES_FILE = "cities.json";
 
     // Cache settings

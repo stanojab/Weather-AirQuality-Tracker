@@ -4,10 +4,10 @@
 	name: Ljubljana
 	lat: 46.0569
 	lon: 14.5058
-	temperature: 14.13
-	humidity: 82
+	temperature: 14.73
+	humidity: 76
 	pressure: 1015
-	windSpeed: 1.54
+	windSpeed: 2.06
 	description: broken clouds
 	icon: 04d
 	weatherLoaded: true
@@ -25,8 +25,8 @@
 	name: Maribor
 	lat: 46.5547
 	lon: 15.6459
-	temperature: 12.21
-	humidity: 80
+	temperature: 12.29
+	humidity: 79
 	pressure: 1016
 	windSpeed: 2.06
 	description: broken clouds
@@ -67,8 +67,8 @@
 	name: Kranj
 	lat: 46.2384
 	lon: 14.3555
-	temperature: 12.8
-	humidity: 85
+	temperature: 12.27
+	humidity: 86
 	pressure: 1015
 	windSpeed: 1.54
 	description: broken clouds
@@ -109,10 +109,10 @@
 	name: Novo Mesto
 	lat: 45.8039
 	lon: 15.1696
-	temperature: 13.8
-	humidity: 87
+	temperature: 14
+	humidity: 84
 	pressure: 1015
-	windSpeed: 1.35
+	windSpeed: 2.56
 	description: overcast clouds
 	icon: 04d
 	weatherLoaded: true
@@ -130,8 +130,8 @@
 	name: Velenje
 	lat: 46.3809
 	lon: 15.0985
-	temperature: 12.34
-	humidity: 90
+	temperature: 10.92
+	humidity: 91
 	pressure: 1015
 	windSpeed: 0.41
 	description: overcast clouds
@@ -173,7 +173,7 @@
 	lat: 46.4205
 	lon: 15.8697
 	temperature: 12.28
-	humidity: 81
+	humidity: 79
 	pressure: 1016
 	windSpeed: 2.06
 	description: broken clouds
@@ -214,10 +214,10 @@
 	name: Slovenj Gradec
 	lat: 46.5101
 	lon: 15.0798
-	temperature: 12.05
-	humidity: 83
+	temperature: 11.69
+	humidity: 84
 	pressure: 1015
-	windSpeed: 0.12
+	windSpeed: 0.34
 	description: overcast clouds
 	icon: 04d
 	weatherLoaded: true
@@ -256,7 +256,7 @@
 	name: Jesenice
 	lat: 46.4297
 	lon: 14.0531
-	temperature: 11.48
+	temperature: 10.9
 	humidity: 79
 	pressure: 1014
 	windSpeed: 0.75
@@ -298,11 +298,11 @@
 	name: Krško
 	lat: 45.9589
 	lon: 15.4919
-	temperature: 13.39
-	humidity: 84
+	temperature: 12.83
+	humidity: 87
 	pressure: 1015
-	windSpeed: 3.09
-	description: broken clouds
+	windSpeed: 1.79
+	description: overcast clouds
 	icon: 04d
 	weatherLoaded: true
 	aqi: 2
@@ -466,11 +466,11 @@
 	name: tttt
 	lat: 46.1083
 	lon: 15.3389
-	temperature: 9.08
+	temperature: 8.87
 	humidity: 87
 	pressure: 1015
 	windSpeed: 1.71
-	description: heavy intensity rain
+	description: light rain
 	icon: 10d
 	weatherLoaded: true
 	aqi: 2
@@ -487,10 +487,10 @@
 	name: ljtest
 	lat: 46.0344
 	lon: 14.6313
-	temperature: 12.62
-	humidity: 87
+	temperature: 13.76
+	humidity: 77
 	pressure: 1015
-	windSpeed: 0.89
+	windSpeed: 0.45
 	description: overcast clouds
 	icon: 04d
 	weatherLoaded: true
@@ -508,7 +508,7 @@
 	name: apitest
 	lat: 46.1515
 	lon: 14.6967
-	temperature: 13.03
+	temperature: 13.18
 	humidity: 87
 	pressure: 1015
 	windSpeed: 0.32
@@ -550,10 +550,10 @@
 	name: dd
 	lat: 46.0592
 	lon: 14.2587
-	temperature: 12.47
-	humidity: 82
+	temperature: 12.73
+	humidity: 65
 	pressure: 1015
-	windSpeed: 0.89
+	windSpeed: 0.67
 	description: overcast clouds
 	icon: 04d
 	weatherLoaded: true
@@ -571,6 +571,27 @@
 	name: dd
 	lat: 46.3592
 	lon: 14.4993
+	temperature: 5.51
+	humidity: 86
+	pressure: 1015
+	windSpeed: 2.06
+	description: broken clouds
+	icon: 04d
+	weatherLoaded: true
+	aqi: 2
+	co: 157.3
+	no2: 5.96
+	o3: 90.66
+	pm2_5: 6.7
+	pm10: 7.68
+	airQualityLoaded: true
+	isStatic: false
+}
+{
+	class: si.um.feri.bozinov.City
+	name: dd1
+	lat: 45.9057
+	lon: 14.4872
 	temperature: 0
 	humidity: 0
 	pressure: 0

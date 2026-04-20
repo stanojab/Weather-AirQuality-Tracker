@@ -1,5 +1,11 @@
 #  Interaktivni Vremenski Zemljevid Slovenije
 
+![Java](https://img.shields.io/badge/Java-11%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+![LibGDX](https://img.shields.io/badge/LibGDX-1.12-E74C3C?style=for-the-badge&logo=libgdx&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-Build-02303A?style=for-the-badge&logo=gradle&logoColor=white)
+![OpenWeatherMap](https://img.shields.io/badge/OpenWeatherMap-API-EB6E4B?style=for-the-badge&logo=openweathermap&logoColor=white)
+![Geoapify](https://img.shields.io/badge/Geoapify-Maps-0078D4?style=for-the-badge&logo=googlemaps&logoColor=white)
+
 Namizna aplikacija za vizualizacijo vremenskih podatkov in kakovosti zraka za mesta v Sloveniji, razvita z uporabo ogrodja **LibGDX** in **Java**.
 
 ---

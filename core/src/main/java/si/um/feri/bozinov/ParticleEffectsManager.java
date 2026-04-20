@@ -18,7 +18,7 @@ public class ParticleEffectsManager {
     private static final float PARTICLE_SPAWN_RATE = 0.05f; // seconds between spawns (faster for continuous effect)
 
     private float spawnTimer = 0f;
-    private City focusedCity = null; // Only spawn particles for this city
+    private City focusedCity = null;
 
     public ParticleEffectsManager(MapRenderer mapRenderer) {
         this.mapRenderer = mapRenderer;
@@ -28,7 +28,7 @@ public class ParticleEffectsManager {
     public void setFocusedCity(City city) {
         this.focusedCity = city;
         if (city == null) {
-            // Clear all particles when no city is focused
+
             particles.clear();
         }
     }
@@ -82,14 +82,14 @@ public class ParticleEffectsManager {
         String description = city.description.toLowerCase();
         double temp = city.temperature;
 
-        // Rain particles - always spawn multiple for looping effect
+        // rain particles
         if (description.contains("rain") || description.contains("drizzle")) {
             int count = 5;
             for (int i = 0; i < count; i++) {
                 particles.add(createRainParticle(cityPos, city.windSpeed));
             }
         }
-        // Snow particles - always spawn multiple for looping effect
+        // snow
         else if (description.contains("snow") || (temp < -10 && description.contains("cloud"))) {
             int count = temp < -5 ? 4 : 2;
             for (int i = 0; i < count; i++) {
@@ -99,7 +99,7 @@ public class ParticleEffectsManager {
 //        else if (description.contains("fog") || description.contains("mist") || city.humidity > 95) {
 //            particles.add(createFogParticle(cityPos));
 //        }
-        // Cloud particles for cloudy weather
+        // cloud
          else if (description.contains("cloud")) {
             if (MathUtils.random() < 0.3f) { // 30% chance
                 particles.add(createCloudParticle(cityPos, city.windSpeed));
@@ -115,14 +115,14 @@ public class ParticleEffectsManager {
             }
 
         }
-        // Heat shimmer for hot weather
-        else if (temp > 28) {
-            if (MathUtils.random() < 0.4f) {
-                particles.add(createHeatShimmerParticle(cityPos));
-            }
-        }
 
-        // Wind particles for windy conditions (can appear with rain/snow)
+//        else if (temp > 28) {
+//            if (MathUtils.random() < 0.4f) {
+//                particles.add(createHeatShimmerParticle(cityPos));
+//            }
+//        }
+
+        //wind particles
         if (city.windSpeed > 8) {
             if (MathUtils.random() < 0.5f) {
                 particles.add(createWindParticle(cityPos, city.windSpeed));
@@ -135,15 +135,15 @@ public class ParticleEffectsManager {
         int aqi = city.aqi;
 
         // Spawn pollution particles based on AQI level
-        if (aqi >= 2) { // Moderate or worse
-            int count = (aqi - 1); // 1 for moderate, 2 for poor, 3 for very poor
+        if (aqi >= 2) {
+            int count = (aqi - 1);
             for (int i = 0; i < count; i++) {
                 particles.add(createPollutionParticle(cityPos, aqi, city.pm2_5));
             }
         }
 
 
-        // Good air quality - clean sparkles
+        // Good air quality
         if (aqi == 1) {
             if (MathUtils.random() < 0.2f) {
                 particles.add(createCleanAirParticle(cityPos));
@@ -151,7 +151,7 @@ public class ParticleEffectsManager {
         }
     }
 
-    // ===== WEATHER PARTICLE CREATORS =====
+    // weather particle creator
 
     private Particle createRainParticle(Vector2 cityPos, double windSpeed) {
         float offsetX = MathUtils.random(-60f, 60f);
@@ -222,7 +222,7 @@ public class ParticleEffectsManager {
         return new WindParticle(x, y, velocity);
     }
 
-    // ===== AIR QUALITY PARTICLE CREATORS =====
+    // air quality particles creator
 
     private Particle createPollutionParticle(Vector2 cityPos, int aqi, double pm25) {
         float offsetX = MathUtils.random(-45f, 45f);
@@ -270,7 +270,7 @@ public class ParticleEffectsManager {
         particles.clear();
     }
 
-    // ===== BASE PARTICLE CLASS =====
+    // particle class
 
     private abstract static class Particle {
         float x, y;
@@ -308,7 +308,7 @@ public class ParticleEffectsManager {
         }
     }
 
-    // ===== WEATHER PARTICLE IMPLEMENTATIONS =====
+    // weather particle implementation
 
     private static class RainParticle extends Particle {
         public RainParticle(float x, float y, float velocityX, float velocityY) {
@@ -453,7 +453,7 @@ public class ParticleEffectsManager {
         }
     }
 
-    // ===== AIR QUALITY PARTICLE IMPLEMENTATIONS =====
+    //air quality implementations
 
     private static class PollutionParticle extends Particle {
         private float driftPhase;
@@ -533,7 +533,7 @@ public class ParticleEffectsManager {
         public void render(ShapeRenderer shapeRenderer) {
             shapeRenderer.setColor(color.r, color.g, color.b, alpha);
             shapeRenderer.circle(x, y, size);
-            // Add cross sparkle
+
             shapeRenderer.rectLine(x - size, y, x + size, y, 1f);
             shapeRenderer.rectLine(x, y - size, x, y + size, 1f);
         }

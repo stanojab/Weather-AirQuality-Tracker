@@ -196,7 +196,7 @@ public class SloveniaMap extends ApplicationAdapter {
         cities.add(new City("Kamnik", 46.2258, 14.6083));
         cities.add(new City("Jesenice", 46.4297, 14.0531));
         cities.add(new City("Izola", 45.5368, 13.6614));
-        cities.add(new City("Krško", 45.9589, 15.4919));
+        cities.add(new City("Krsko", 45.9589, 15.4919));
     }
 
     private void loadCitiesFromFile() {
@@ -310,9 +310,7 @@ public class SloveniaMap extends ApplicationAdapter {
         }
     }
 
-    /**
-     * Clear the map cache and force re-download on next launch
-     */
+
     private void clearMapCache() {
         try {
             FileHandle cachedMap = Gdx.files.local(MAP_CACHE_FILE);
@@ -1099,11 +1097,11 @@ public class SloveniaMap extends ApplicationAdapter {
             mapRenderer.drawPendingLocationMarker(pendingLocation, markerPulse);
         }
 
-        // Draw particle effects BEFORE city markers so they appear behind
+
         shapeRenderer.setProjectionMatrix(camera.combined);
         particleEffectsManager.render(shapeRenderer);
 
-        // Draw city icons (CHANGED - was drawCityMarkers)
+
         batch.setProjectionMatrix(camera.combined);
         shapeRenderer.setProjectionMatrix(camera.combined);
         mapRenderer.drawCityIcons(batch, cities, selectedCity, hoveredCity, editMode, markerPulse, airQualityMode);
@@ -1161,10 +1159,11 @@ public class SloveniaMap extends ApplicationAdapter {
         if (stage != null) stage.dispose();
         if (skin != null) skin.dispose();
         if (mapRenderer != null) mapRenderer.dispose();
+
     }
 
     public boolean scrolled(float amountX, float amountY) {
-        // Cancel camera animation if user manually zooms
+
         isAnimatingCamera = false;
 
         camera.zoom += amountY * 0.1f;

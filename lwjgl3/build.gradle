@@ -47,10 +47,17 @@ def os = System.properties['os.name'].toLowerCase(Locale.ROOT)
 
 run {
   workingDir = rootProject.file('assets').path
-// You can uncomment the next line if your IDE claims a build failure even when the app closed properly.
-  //setIgnoreExitValue(true)
-
   if (os.contains('mac')) jvmArgs += "-XstartOnFirstThread"
+
+  def localProps = new Properties()
+  def localPropsFile = rootProject.file("local.properties")
+
+  if (localPropsFile.exists()) {
+    localProps.load(new FileInputStream(localPropsFile))
+    println "KEYS: " + localProps.keySet()
+  }
+
+  systemProperty 'OPENWEATHER_API_KEY', localProps.getProperty('OPENWEATHER_API_KEY', '')
 }
 
 jar {

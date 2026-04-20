@@ -7,7 +7,27 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class AirQualityDataManager {
-    private static final String OPENWEATHER_API_KEY = "c55932282557548fa0e13cf7975bfc0d";
+    private static final String OPENWEATHER_API_KEY = loadApiKey();
+
+    private static String loadApiKey() {
+        // Try system property first (Gradle run)
+        String key = System.getProperty("OPENWEATHER_API_KEY");
+        if (key != null && !key.isEmpty()) return key;
+
+
+        try {
+            java.io.File file = new java.io.File("../local.properties");
+            if (!file.exists()) file = new java.io.File("local.properties");
+
+            java.util.Properties props = new java.util.Properties();
+            props.load(new java.io.FileInputStream(file));
+            key = props.getProperty("OPENWEATHER_API_KEY", "");
+            return key;
+        } catch (Exception e) {
+            System.err.println("Could not load API key: " + e.getMessage());
+            return "";
+        }
+    }
     private static final boolean USE_STATIC_DATA = false;
 
     public void loadAirQualityDataForAllCities(java.util.List<City> cities) {
